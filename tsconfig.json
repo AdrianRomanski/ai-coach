@@ -8,6 +8,9 @@
     },
     {
       "path": "./packages/sparring-partner"
+    },
+    {
+      "path": "./packages/external-judge"
     }
   ],
   "compilerOptions": {}

@@ -4,10 +4,10 @@ Tier 1: the offline sparring partner. It runs a Socratic, Feynman-style dialogue
 
 ## Configuration
 
-| Variable | Meaning |
-| --- | --- |
-| `OLLAMA_MODEL` | The Gemma model, as `ollama list` shows it. Required. |
-| `OLLAMA_HOST` | Defaults to `http://127.0.0.1:11434`. Only plain http on loopback is accepted. |
+| Variable       | Meaning                                                                        |
+| -------------- | ------------------------------------------------------------------------------ |
+| `OLLAMA_MODEL` | The Gemma model, as `ollama list` shows it. Required.                          |
+| `OLLAMA_HOST`  | Defaults to `http://127.0.0.1:11434`. Only plain http on loopback is accepted. |
 
 `sparringConfig()` sets the banned buzzwords, the Socratic rules, how many follow-ups and rephrases are allowed, and the language of the questions.
 
