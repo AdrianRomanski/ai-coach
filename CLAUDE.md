@@ -21,3 +21,7 @@
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+# Architecture decisions
+
+Every important or major change ships with an ADR in `docs/adr/`, in the same commit; ADR-0001 lists what counts. Read `docs/adr/README.md` before changing anything, copy `docs/adr/template.md` for a new decision, and never rewrite an accepted ADR: supersede it with a new one. Source code carries no comments (ADR-0011).

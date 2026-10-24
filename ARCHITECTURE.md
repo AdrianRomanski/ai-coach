@@ -2,6 +2,8 @@
 
 ai-coach is a ports-and-adapters (hexagonal) application. The core knows nothing about MCP, Ollama, Gemini, the file system or the terminal; those sit behind ports the core defines, and one composition root wires them together.
 
+Why each part is the way it is lives in the ADRs in `docs/adr/`.
+
 ```
                     driving side                      driven side
                                          ┌──────────────────────────────┐
