@@ -12,6 +12,7 @@
     "thinkingLevel": "MEDIUM"
   },
   "sparring": {
+    "style": "auto",
     "maxFollowUps": 3,
     "maxRephrases": 2,
     "verbatimRunWords": 6

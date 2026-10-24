@@ -1,12 +1,13 @@
 import {
   scheduleReview,
+  type CoachingStyle,
   type Ladder,
   type SparringResult,
   type SparringRules,
 } from '@ai-coach/domain';
 import { NotFoundError, NotSparrableError } from '../errors.js';
-import { resourcesByCoachId, tier2History } from '../history.js';
-import type { SparringPartner } from '../ports/models.js';
+import { resolveStyle, resourcesByCoachId, tier2History } from '../history.js';
+import type { SparringPartner, StyleClassifier } from '../ports/models.js';
 import type { PendingJudgements } from '../ports/state.js';
 import type {
   NoteDetails,
@@ -39,6 +40,7 @@ export interface SparringDeps {
   sessions: SessionLog;
   pending: PendingJudgements;
   partner: SparringPartner;
+  classifier: StyleClassifier;
   rules: SparringRules;
   ladder: Ladder;
 }
@@ -76,6 +78,7 @@ export class Sparring {
 
   async open(
     path: string,
+    style?: CoachingStyle,
   ): Promise<{ note: NoteDetails; conversation: SparringConversation }> {
     const note = await this.deps.notes.readNote(path);
     if (note.bucket !== 'resources') {
@@ -94,6 +97,7 @@ export class Sparring {
         this.deps.partner,
         { title: note.title, body: note.body },
         this.deps.rules,
+        await resolveStyle(note, this.deps.rules, this.deps.classifier, style),
       ),
     };
   }

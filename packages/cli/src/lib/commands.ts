@@ -8,12 +8,13 @@ import {
   type JudgedSession,
   type NoteDetails,
   type SparredNote,
+  type GapPlace,
   type StudyOutcome,
   type StudyPrompt,
   type Sparring,
   type Turn,
 } from '@ai-coach/application';
-import type { Mastery } from '@ai-coach/domain';
+import type { CoachingStyle, Mastery } from '@ai-coach/domain';
 import type { Coach } from './composition.js';
 import type { CoachConfig } from './config.js';
 import { confirm, paint, readAnswer, type Terminal } from './terminal.js';
@@ -138,10 +139,15 @@ async function pick(
   return [...new Set(picks)].map((n) => candidates[n - 1]!.path);
 }
 
+export interface CommandOptions {
+  style?: CoachingStyle;
+}
+
 export async function spar(
   coach: Coach,
   term: Terminal,
   refs: string[],
+  options: CommandOptions = {},
 ): Promise<void> {
   const sparring = coach.sparring();
   const paths = await pick(sparring, coach, term, refs);
@@ -157,7 +163,7 @@ export async function spar(
   notes: for (const path of paths) {
     let opened;
     try {
-      opened = await sparring.open(path);
+      opened = await sparring.open(path, options.style);
     } catch (err) {
       if (!(err instanceof NotSparrableError)) throw err;
       term.print(paint('red', `Skipping ${err.message}`));
@@ -166,7 +172,10 @@ export async function spar(
     const { note, conversation } = opened;
     term.print();
     term.print(
-      paint('bold', `── ${note.title} ${paint('dim', `(${whereFrom(note)})`)}`),
+      paint(
+        'bold',
+        `── ${note.title} ${paint('dim', `(${whereFrom(note)} · ${conversation.style} style)`)}`,
+      ),
     );
     try {
       showTurn(term, await conversation.start());
@@ -211,7 +220,7 @@ export async function spar(
       verdict: item.verdict,
     }))
     .filter((item) => item.verdict === 'fail');
-  await offerStudy(coach, term, failed);
+  await offerStudy(coach, term, failed, options.style);
 }
 
 function showJudged(term: Terminal, judged: JudgedSession): void {
@@ -243,6 +252,7 @@ export async function judge(
   coach: Coach,
   term: Terminal,
   sessionIds: string[],
+  options: CommandOptions = {},
 ): Promise<void> {
   const judging = coach.judging();
   const sessions = await judging.select(sessionIds);
@@ -279,6 +289,7 @@ export async function judge(
         coach,
         term,
         judged.notes.filter((n) => n.judgement.verdict === 'fail'),
+        options.style,
       );
     }
   }
@@ -288,10 +299,11 @@ async function offerStudy(
   coach: Coach,
   term: Terminal,
   failed: { path: string; title: string }[],
+  style?: CoachingStyle,
 ): Promise<void> {
   for (const note of failed) {
     if (await confirm(term, `Study the gaps for ${note.title} now?`, true)) {
-      await runStudy(coach, term, note.path);
+      await runStudy(coach, term, note.path, style);
     }
   }
 }
@@ -322,18 +334,65 @@ function showOutcome(term: Terminal, outcome: StudyOutcome): void {
     case 'unresolved':
       term.print(`${paint('red', '  Still open:')} ${outcome.nudge}`);
       break;
+    case 'help':
+      term.print(`${paint('cyan', 'coach>')} ${outcome.clue}`);
+      if (outcome.passage) {
+        const where = outcome.passage.page
+          ? `page ${outcome.passage.page}`
+          : 'the note';
+        term.print(paint('dim', `  Here is ${where}, in the author's words:`));
+        term.print(paint('italic', `  "${outcome.passage.text}"`));
+      }
+      term.print(
+        paint(
+          'dim',
+          '  That did not use up a try. Explain it in your own words.',
+        ),
+      );
+      break;
   }
+}
+
+function showPlace(term: Terminal, place: GapPlace): void {
+  if (place.kind === 'here') return;
+  if (place.kind === 'outside') {
+    term.print(
+      paint(
+        'dim',
+        "  This chapter doesn't explain it and no other chapter matched: answer from what you know, or /skip.",
+      ),
+    );
+    return;
+  }
+  if (!place.passage) {
+    term.print(
+      paint(
+        'dim',
+        `  This goes beyond this chapter: ${place.chapter} teaches it. Reread that chapter.`,
+      ),
+    );
+    return;
+  }
+  const where = place.passage.page ? `, page ${place.passage.page}` : '';
+  term.print(
+    paint(
+      'dim',
+      `  This goes beyond this chapter. ${place.chapter} covers it${where}, in the author's words:`,
+    ),
+  );
+  term.print(paint('italic', `  "${place.passage.text}"`));
 }
 
 async function runStudy(
   coach: Coach,
   term: Terminal,
   path: string,
+  style?: CoachingStyle,
 ): Promise<void> {
   const studying = coach.studying();
   let opened;
   try {
-    opened = await studying.open(path);
+    opened = await studying.open(path, style);
   } catch (err) {
     if (!(err instanceof NotFoundError)) throw err;
     term.print(err.message);
@@ -344,13 +403,13 @@ async function runStudy(
   term.print(
     paint(
       'bold',
-      `── Studying ${note.title} ${paint('dim', `(${whereFrom(note)})`)}`,
+      `── Studying ${note.title} ${paint('dim', `(${whereFrom(note)} · ${session.style} style)`)}`,
     ),
   );
   term.print(
     paint(
       'dim',
-      'Explain each gap in your own words. A blank line sends; /skip moves on; /quit stops.',
+      'Explain each gap in your own words. A blank line sends; /hint or "teach me" gives a clue; /skip moves on; /quit stops.',
     ),
   );
 
@@ -363,6 +422,7 @@ async function runStudy(
         `Gap ${prompt.index + 1} of ${prompt.total}: ${prompt.gap}`,
       ),
     );
+    showPlace(term, prompt.place);
     term.print(`${paint('cyan', 'coach>')} ${prompt.hint}`);
     for (;;) {
       const input = await readAnswer(term);
@@ -400,10 +460,16 @@ export async function study(
   coach: Coach,
   term: Terminal,
   args: string[],
+  options: CommandOptions = {},
 ): Promise<void> {
   if (args.length !== 1)
     throw new UsageError('Usage: coach study <note path or coach_id>');
-  await runStudy(coach, term, await coach.studying().resolve(args[0]!));
+  await runStudy(
+    coach,
+    term,
+    await coach.studying().resolve(args[0]!),
+    options.style,
+  );
 }
 
 function showPlan(term: Terminal, plan: FilingPlan): void {

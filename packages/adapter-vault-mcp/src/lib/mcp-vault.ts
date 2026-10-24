@@ -15,6 +15,7 @@ import {
   type VaultFiling,
 } from '@ai-coach/application';
 import {
+  isCoachingStyle,
   tier2Payload,
   type ParaBucket,
   type Tier2Payload,
@@ -72,6 +73,9 @@ function details(note: ReadNoteResult): NoteDetails {
     body: note.body,
     rawRole: note.rawRole,
     chapter: chapterOf(note),
+    style: isCoachingStyle(note.frontmatter['style'])
+      ? note.frontmatter['style']
+      : null,
     sessions: note.history.entries.map((e) => ({
       sessionId: e.session_id,
       tier: e.tier,

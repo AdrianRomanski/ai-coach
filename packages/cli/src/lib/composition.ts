@@ -6,6 +6,7 @@ import {
 import {
   OllamaSparringPartner,
   OllamaStudyPartner,
+  OllamaStyleClassifier,
 } from '@ai-coach/adapter-ollama';
 import { McpVault } from '@ai-coach/adapter-vault-mcp';
 import {
@@ -18,6 +19,7 @@ import {
   type Judge,
   type SparringPartner,
   type StudyPartner,
+  type StyleClassifier,
 } from '@ai-coach/application';
 import { ollamaOptions, type CoachConfig } from './config.js';
 
@@ -35,6 +37,7 @@ export interface AdapterOverrides {
   partner?: (config: CoachConfig) => SparringPartner;
   judge?: (config: CoachConfig) => Judge;
   studyPartner?: (config: CoachConfig) => StudyPartner;
+  classifier?: (config: CoachConfig) => StyleClassifier;
 }
 
 export async function composeCoach(
@@ -47,6 +50,9 @@ export async function composeCoach(
     vault: config.vault,
   });
   const pending = new FilePendingJudgements(config.stateDir);
+  const classifier = () =>
+    overrides.classifier?.(config) ??
+    new OllamaStyleClassifier(ollamaOptions(config));
 
   return {
     clock: new SystemClock(today),
@@ -60,6 +66,7 @@ export async function composeCoach(
         partner:
           overrides.partner?.(config) ??
           new OllamaSparringPartner(ollamaOptions(config)),
+        classifier: classifier(),
         rules: config.sparring,
         ladder: config.ladder,
       }),
@@ -69,6 +76,7 @@ export async function composeCoach(
         partner:
           overrides.studyPartner?.(config) ??
           new OllamaStudyPartner(ollamaOptions(config)),
+        classifier: classifier(),
         rules: config.sparring,
       }),
     judging: () =>

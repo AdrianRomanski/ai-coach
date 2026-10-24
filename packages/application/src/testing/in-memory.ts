@@ -1,11 +1,18 @@
 import {
   PARA_BUCKETS,
+  type CoachingStyle,
+  type Note,
+  type SparringRules,
   tier2Payload,
   type Mastery,
   type ParaBucket,
   type Tier2Payload,
 } from '@ai-coach/domain';
-import { NotFoundError, VaultRefusedError } from '../lib/errors.js';
+import {
+  NotFoundError,
+  UnusableReplyError,
+  VaultRefusedError,
+} from '../lib/errors.js';
 import type {
   Judge,
   JudgeReport,
@@ -13,9 +20,11 @@ import type {
   NextTurnRequest,
   ChallengeRequest,
   OpeningChallenge,
+  ChapterChoice,
   StudyCheck,
   StudyPartner,
   StudyRequest,
+  StyleClassifier,
   SparringPartner,
 } from '../lib/ports/models.js';
 import type {
@@ -55,6 +64,7 @@ interface StoredNote {
   coachId: string | null;
   rawRole: RawRole;
   chapter: BookChapter | null;
+  style: CoachingStyle | null;
 }
 
 interface StoredSession {
@@ -83,7 +93,9 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
   put(
     path: string,
     body: string,
-    raw: { rawRole: RawRole; chapter?: BookChapter } = { rawRole: null },
+    raw: { rawRole: RawRole; chapter?: BookChapter; style?: CoachingStyle } = {
+      rawRole: null,
+    },
   ): void {
     const title = path.split('/').pop()!.replace(/\.md$/, '');
     this.notes.set(path, {
@@ -93,6 +105,7 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
       coachId: null,
       rawRole: raw.rawRole,
       chapter: raw.chapter ?? null,
+      style: raw.style ?? null,
     });
   }
 
@@ -165,6 +178,7 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
       sessions: this.entries(note.coachId),
       rawRole: note.rawRole,
       chapter: note.chapter,
+      style: note.style,
     };
   }
 
@@ -283,7 +297,12 @@ export class ScriptedPartner implements SparringPartner {
       throw new Error('ScriptedPartner ran out of challenges');
     if (next instanceof Error) throw next;
     return typeof next === 'string'
-      ? { focus: "The note's central idea.", challenge: next }
+      ? {
+          focus: "The note's central idea.",
+          scope: [],
+          jargon: [],
+          challenge: next,
+        }
       : next;
   }
 
@@ -339,8 +358,29 @@ export class ScriptedStudyPartner implements StudyPartner {
   readonly quotes: string[] = [];
   readonly checks: StudyCheck[] = [];
   readonly checked: string[] = [];
+  readonly choices: (number | null)[] = [];
+  readonly offered: string[][] = [];
+
+  async chooseChapter(request: ChapterChoice): Promise<number | null> {
+    this.offered.push(request.chapters);
+    return this.choices.length ? this.choices.shift()! : null;
+  }
+
+  readonly hintedFrom: string[] = [];
+  readonly failing = new Set<string>();
+  readonly styles: string[] = [];
+
+  async clue(request: StudyRequest): Promise<string> {
+    if (this.failing.has('clue'))
+      throw new UnusableReplyError('study partner', 'unusable');
+    this.styles.push(request.style);
+    return `Clue for ${request.gap}`;
+  }
 
   async hint(request: StudyRequest): Promise<string> {
+    if (this.failing.has('hint'))
+      throw new UnusableReplyError('study partner', 'unusable');
+    this.hintedFrom.push(request.note.title);
     return this.hints.shift() ?? `Hint about ${request.gap}?`;
   }
 
@@ -351,9 +391,22 @@ export class ScriptedStudyPartner implements StudyPartner {
   async check(
     request: StudyRequest & { explanation: string },
   ): Promise<StudyCheck> {
+    if (this.failing.has('check'))
+      throw new UnusableReplyError('study partner', 'unusable');
     this.checked.push(request.explanation);
     const next = this.checks.shift();
     if (!next) throw new Error('ScriptedStudyPartner ran out of checks');
     return next;
+  }
+}
+
+export class FixedClassifier implements StyleClassifier {
+  readonly classified: string[] = [];
+
+  constructor(private readonly style: CoachingStyle = 'feynman') {}
+
+  async classify(note: Note, _rules: SparringRules): Promise<CoachingStyle> {
+    this.classified.push(note.title);
+    return this.style;
   }
 }

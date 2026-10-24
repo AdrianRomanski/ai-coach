@@ -1,6 +1,7 @@
 import {
   StudyRound,
   StudyRoundError,
+  groundedIn,
   locatePassage,
   quotedPassage,
 } from './study-round.js';
@@ -93,6 +94,21 @@ describe('locatePassage', () => {
         'a completely invented sentence that the author never wrote at all',
       ),
     ).toBeNull();
+  });
+
+  it('knows whether a note is grounded enough to hold a gap, also for short notes', () => {
+    expect(
+      groundedIn(
+        body,
+        'You did not explain why bolding and highlighting help future you.',
+      ),
+    ).toBe(true);
+    expect(groundedIn(body, 'You did not explain quantum lattices.')).toBe(
+      false,
+    );
+    expect(
+      groundedIn('Bolding helps future you.', 'Why does bolding help?'),
+    ).toBe(true);
   });
 
   it('returns nothing when the note does not discuss it', () => {

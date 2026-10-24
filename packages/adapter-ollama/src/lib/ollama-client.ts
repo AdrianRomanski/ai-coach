@@ -49,6 +49,23 @@ export function firstSentence(text: string): string {
   return (match ? match[0] : text).trim();
 }
 
+export type SentenceKind = 'question' | 'statement' | 'any';
+
+const PROMPTING =
+  /^(explain|describe|walk me|tell me|show|name|compare|imagine|suppose|picture|argue|defend|predict)\b/i;
+const FILLER =
+  /^(okay|ok|sure|alright|certainly|here|let's|let us|great|got it)\b/i;
+const ECHO =
+  /which is data|<\/?(note|transcript|focus)-|^the gap\b|^the learner's explanation/i;
+
+export function usable(line: string, kind: SentenceKind): boolean {
+  if (line.split(' ').length < 3 || FILLER.test(line) || ECHO.test(line))
+    return false;
+  if (kind === 'question') return line.endsWith('?') || PROMPTING.test(line);
+  if (kind === 'statement') return !line.endsWith('?');
+  return true;
+}
+
 export function cleanSentence(raw: string): string {
   return raw
     .replace(/<\/?[a-z]+-[0-9a-f]+[^>]*>/gi, '')
@@ -88,24 +105,53 @@ export class OllamaClient {
 
   async sentence(
     messages: ChatMessage[],
-    temperature?: number,
+    shape: { kind?: SentenceKind; temperature?: number } = {},
   ): Promise<string> {
     let last = '';
     for (let attempt = 0; attempt < 2; attempt++) {
       last = await this.chat(messages, {
         maxTokens: SENTENCE_TOKENS,
-        temperature,
+        temperature: shape.temperature,
       });
       const sentence = last
         .split('\n')
         .map(cleanSentence)
-        .find((line) => line.split(' ').length >= 3);
+        .map((line) =>
+          shape.kind === 'statement' ? firstSentence(line) : line,
+        )
+        .find((line) => usable(line, shape.kind ?? 'any'));
       if (sentence) return sentence;
     }
     throw new UnusableReplyError(
       this.service,
       `The local model gave an unusable sentence: ${last.slice(0, 200)}`,
     );
+  }
+
+  async lines(
+    messages: ChatMessage[],
+    max: number,
+    minWords = 2,
+  ): Promise<string[]> {
+    const raw = await this.chat(messages, { maxTokens: 200, temperature: 0 });
+    return raw
+      .split('\n')
+      .filter((line) => /^\s*(?:[-*•]|\d+[.)])\s+/.test(line))
+      .map((line) =>
+        cleanSentence(line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')),
+      )
+      .filter(
+        (line) => line.split(' ').length >= minWords && !line.endsWith('?'),
+      )
+      .slice(0, max);
+  }
+
+  async choice(messages: ChatMessage[], count: number): Promise<number | null> {
+    const raw = await this.chat(messages, { maxTokens: 8, temperature: 0 });
+    const match = /\d+/.exec(raw);
+    if (!match) return null;
+    const index = Number(match[0]) - 1;
+    return index >= 0 && index < count ? index : null;
   }
 
   async yesNo(messages: ChatMessage[]): Promise<boolean | null> {

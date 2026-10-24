@@ -84,6 +84,13 @@ describe('SparringRound', () => {
     expect(r.submit('magic').kind).toBe('rephrase');
   });
 
+  it('turns a fail that names no gap into a pass', () => {
+    const r = round();
+    r.open(CHALLENGE);
+    r.submit('Microtasks first.');
+    expect(r.conclude('fail', [], '').verdict).toBe('pass');
+  });
+
   it('can withdraw the last accepted answer when the partner fails', () => {
     const r = round();
     r.open(CHALLENGE);

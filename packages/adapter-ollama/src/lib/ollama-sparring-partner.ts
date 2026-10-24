@@ -16,7 +16,9 @@ import {
   challengeMessages,
   focusMessages,
   gapCheckMessages,
+  jargonMessages,
   nextTurnMessages,
+  scopeMessages,
   titleFocus,
 } from './prompts.js';
 
@@ -39,10 +41,23 @@ export class OllamaSparringPartner implements SparringPartner {
 
   async openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge> {
     const focus = await this.focus(request);
+    const scope = await this.client.lines(
+      scopeMessages(request, this.client.nonce()),
+      5,
+    );
     const challenge = await this.client.sentence(
       challengeMessages(request, focus, this.client.nonce()),
+      { kind: 'question' },
     );
-    return { focus, challenge };
+    const jargon =
+      request.style === 'feynman'
+        ? await this.client.lines(
+            jargonMessages(request, this.client.nonce()),
+            3,
+            1,
+          )
+        : [];
+    return { focus, scope, jargon, challenge };
   }
 
   async nextTurn(request: NextTurnRequest): Promise<NextTurn> {
@@ -54,11 +69,12 @@ export class OllamaSparringPartner implements SparringPartner {
       return { action: 'probe', question: reply.question };
     }
     const gaps = await this.uncoveredGaps(request, reply.gaps);
-    const verdict =
-      reply.verdict === 'fail' && reply.gaps.length && !gaps.length
-        ? 'pass'
-        : reply.verdict;
-    return { action: 'conclude', verdict, gaps, feedback: reply.feedback };
+    return {
+      action: 'conclude',
+      verdict: reply.verdict,
+      gaps,
+      feedback: reply.feedback,
+    };
   }
 
   private async uncoveredGaps(
@@ -81,7 +97,7 @@ export class OllamaSparringPartner implements SparringPartner {
       focus = firstSentence(
         await this.client.sentence(
           focusMessages(request, this.client.nonce()),
-          0,
+          { kind: 'statement', temperature: 0 },
         ),
       );
       if (FOCUS_OPENING.test(focus)) return focus;

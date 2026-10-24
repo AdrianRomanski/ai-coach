@@ -1,7 +1,11 @@
 import { parseArgs } from 'node:util';
 import { OfflineViolationError } from '@ai-coach/adapter-ollama';
 import { ApplicationError } from '@ai-coach/application';
-import { DomainError } from '@ai-coach/domain';
+import {
+  COACHING_STYLES,
+  DomainError,
+  isCoachingStyle,
+} from '@ai-coach/domain';
 import {
   archive,
   capture,
@@ -14,6 +18,7 @@ import {
   study,
   UsageError,
   view,
+  type CommandOptions,
 } from './commands.js';
 import {
   composeCoach,
@@ -36,7 +41,10 @@ export const USAGE = `coach: a Socratic sparring partner for your notes
   coach init                  bring the vault onto the five PARA folders
   coach view                  open the vault graph in the browser
 
-Options: --config <file>, --today YYYY-MM-DD, --help`;
+Options: --style feynman|socratic|cornell|devil, --config <file>, --today YYYY-MM-DD, --help
+
+Styles: feynman (plain words, no jargon), socratic (counter-examples), cornell (the author's thesis and argument), devil (failure modes and trade-offs).
+Without --style, a note's style: frontmatter, then sparring.style in the config, then automatic choice.`;
 
 export interface CliDeps extends AdapterOverrides {
   term: Terminal;
@@ -46,7 +54,12 @@ export interface CliDeps extends AdapterOverrides {
 
 const COMMANDS: Record<
   string,
-  (coach: Coach, term: Terminal, args: string[]) => Promise<void>
+  (
+    coach: Coach,
+    term: Terminal,
+    args: string[],
+    options: CommandOptions,
+  ) => Promise<void>
 > = {
   due: (coach, term) => due(coach, term),
   list: (coach, term) => list(coach, term),
@@ -79,6 +92,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
       options: {
         config: { type: 'string' },
         today: { type: 'string' },
+        style: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
       },
     });
@@ -94,6 +108,11 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   const handler = COMMANDS[command];
   if (!handler && command !== 'view') {
     term.print(`Unknown command: ${command}\n\n${USAGE}`);
+    return 2;
+  }
+  const style = parsed.values.style;
+  if (style !== undefined && !isCoachingStyle(style)) {
+    term.print(`--style must be one of ${COACHING_STYLES.join(', ')}`);
     return 2;
   }
   const today = parsed.values.today;
@@ -114,7 +133,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
       return 0;
     }
     coach = await composeCoach(config, today, deps);
-    await handler(coach, term, args);
+    await handler(coach, term, args, { style });
     return 0;
   } catch (err) {
     term.print(

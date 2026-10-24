@@ -2,8 +2,10 @@ import {
   ChallengeQuotesNoteError,
   NEUTRAL_PROBE,
   SparringRound,
+  groundedIn,
   type Note,
   type SparringResult,
+  type CoachingStyle,
   type SparringRules,
   type Verdict,
 } from '@ai-coach/domain';
@@ -17,13 +19,15 @@ export type Turn =
   | { kind: 'verdict'; verdict: Verdict; gaps: string[]; feedback: string };
 
 export class SparringConversation {
-  private readonly round: SparringRound;
+  private round: SparringRound;
   private focus = '';
+  private scope: string[] = [];
 
   constructor(
     private readonly partner: SparringPartner,
     private readonly note: Note,
     private readonly rules: SparringRules,
+    readonly style: CoachingStyle,
   ) {
     this.round = SparringRound.over(note, rules);
   }
@@ -39,14 +43,23 @@ export class SparringConversation {
       attempt < this.rules.maxChallengeAttempts;
       attempt++
     ) {
-      const { focus, challenge } = await this.partner.openingChallenge({
-        note: this.note,
-        rules: this.rules,
-        rejected: [...rejected],
-      });
+      const { focus, scope, jargon, challenge } =
+        await this.partner.openingChallenge({
+          note: this.note,
+          rules: this.rules,
+          style: this.style,
+          rejected: [...rejected],
+        });
+      if (jargon.length) {
+        this.round = SparringRound.over(this.note, {
+          ...this.rules,
+          buzzwords: [...this.rules.buzzwords, ...jargon],
+        });
+      }
       try {
         this.round.open(challenge);
         this.focus = focus.trim();
+        this.scope = scope.map((idea) => idea.trim()).filter(Boolean);
         return { kind: 'challenge', question: this.round.pendingQuestion! };
       } catch (err) {
         if (!(err instanceof ChallengeQuotesNoteError)) throw err;
@@ -68,7 +81,9 @@ export class SparringConversation {
       next = await this.partner.nextTurn({
         note: this.note,
         rules: this.rules,
+        style: this.style,
         focus: this.focus,
+        scope: this.scope,
         exchanges: this.round.transcript,
         followUpsLeft,
         rejected: [],
@@ -86,8 +101,16 @@ export class SparringConversation {
 
     const conclusion =
       next.action === 'conclude'
-        ? this.round.conclude(next.verdict, next.gaps, next.feedback)
-        : this.round.conclude('fail', [], '');
+        ? this.round.conclude(
+            next.verdict,
+            next.gaps.filter((gap) => groundedIn(this.note.body, gap)),
+            next.feedback,
+          )
+        : this.round.conclude(
+            'fail',
+            [`You did not answer this follow-up: ${next.question.trim()}`],
+            'The follow-ups ran out before the idea was fully explained.',
+          );
     return { kind: 'verdict', ...conclusion };
   }
 
@@ -101,7 +124,9 @@ export class SparringConversation {
     const retry = await this.partner.nextTurn({
       note: this.note,
       rules: this.rules,
+      style: this.style,
       focus: this.focus,
+      scope: this.scope,
       exchanges: this.round.transcript,
       followUpsLeft: 1,
       rejected: [question],

@@ -8,6 +8,7 @@ import {
   type OllamaOptions,
 } from '@ai-coach/adapter-ollama';
 import {
+  COACHING_STYLES,
   DEFAULT_LADDER,
   sparringRules,
   validateLadder,
@@ -35,6 +36,7 @@ const ConfigFile = z.strictObject({
     .optional(),
   sparring: z
     .strictObject({
+      style: z.enum(['auto', ...COACHING_STYLES]).optional(),
       buzzwords: z.array(z.string()).optional(),
       socraticRules: z.array(z.string()).optional(),
       maxFollowUps: z.number().optional(),

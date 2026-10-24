@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { UnavailableError } from '@ai-coach/application';
 import { sparringRules } from '@ai-coach/domain';
 import { OllamaStudyPartner } from './ollama-study-partner.js';
+import { OllamaStyleClassifier } from './ollama-style-classifier.js';
 
 const NOTE = {
   title: 'Distill',
@@ -54,36 +55,58 @@ describe('OllamaStudyPartner', () => {
   it('asks a guiding question from the note and the gap', async () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
     replies.push('What would future you need from this note in six months?');
-    expect(await partner.hint({ note: NOTE, rules, gap: GAP })).toBe(
-      'What would future you need from this note in six months?',
-    );
+    expect(
+      await partner.hint({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+    ).toBe('What would future you need from this note in six months?');
     expect(text(0)).toContain('NOTE-BODY-MARKER');
     expect(text(0)).toContain(`The gap, which is data: "${GAP}"`);
     expect(text(0)).toMatch(/Never state or hint at the answer itself/);
   });
 
-  it('checks an explanation, and nudges without the note when the gap stays open', async () => {
+  it('chooses the chapter that teaches a gap from a numbered list of titles', async () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
-    replies.push('yes');
+    const chapters = ['Capture', 'Organize', 'Distill'];
+    replies.push('3', 'none', '9');
+    expect(await partner.chooseChapter({ rules, gap: GAP, chapters })).toBe(2);
+    expect(text(0)).toContain('3. "Distill"');
+    expect(text(0)).not.toContain('NOTE-BODY-MARKER');
+    expect(
+      await partner.chooseChapter({ rules, gap: GAP, chapters }),
+    ).toBeNull();
+    expect(
+      await partner.chooseChapter({ rules, gap: GAP, chapters }),
+    ).toBeNull();
+  });
+
+  it('grades an explanation against a private reference, and nudges without the note', async () => {
+    const partner = new OllamaStudyPartner({ model: 'g', host });
+    replies.push('Bolding lets you grasp a note fast later.', 'yes');
     expect(
       await partner.check({
         note: NOTE,
         rules,
+        style: 'cornell',
         gap: GAP,
         explanation: 'So I find the essence fast.',
       }),
-    ).toEqual({
-      closed: true,
-      nudge: '',
-    });
-    expect(sent[0]!.options).toMatchObject({ temperature: 0, num_predict: 8 });
+    ).toEqual({ closed: true, nudge: '' });
+    expect(text(0)).toContain('NOTE-BODY-MARKER');
+    expect(text(0)).toMatch(/private reference/);
+    expect(text(1)).toContain('"Bolding lets you grasp a note fast later."');
+    expect(text(1)).not.toContain('NOTE-BODY-MARKER');
+    expect(sent[1]!.options).toMatchObject({ temperature: 0, num_predict: 8 });
 
     sent.length = 0;
-    replies.push('No.', 'You have not said what bolding saves you later.');
+    replies.push(
+      'Bolding lets you grasp a note fast later.',
+      'No.',
+      'You have not said what bolding saves you later.',
+    );
     expect(
       await partner.check({
         note: NOTE,
         rules,
+        style: 'cornell',
         gap: GAP,
         explanation: 'It looks nice.',
       }),
@@ -91,20 +114,44 @@ describe('OllamaStudyPartner', () => {
       closed: false,
       nudge: 'You have not said what bolding saves you later.',
     });
-    expect(text(1)).not.toContain('NOTE-BODY-MARKER');
+    expect(text(2)).not.toContain('NOTE-BODY-MARKER');
+    expect(text(2)).not.toContain('grasp a note fast');
+  });
+
+  it('gives a one-sentence clue as a statement when the learner asks for help', async () => {
+    const partner = new OllamaStudyPartner({ model: 'g', host });
+    replies.push(
+      'Okay, here goes.',
+      'Think about what future you skims first.',
+    );
+    expect(
+      await partner.clue({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+    ).toBe('Think about what future you skims first.');
+    expect(text(0)).toMatch(/asked for help/);
+  });
+
+  it('classifies a note as conceptual or technical, and falls back to cornell', async () => {
+    const classifier = new OllamaStyleClassifier({ model: 'g', host });
+    replies.push('2', '1', 'not sure');
+    expect(await classifier.classify(NOTE, rules)).toBe('feynman');
+    expect(await classifier.classify(NOTE, rules)).toBe('cornell');
+    expect(await classifier.classify(NOTE, rules)).toBe('cornell');
+    expect(text(0)).toContain('NOTE-BODY-MARKER');
   });
 
   it('returns no quote when the model cannot give one, but reports an outage', async () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
     replies.push('', '');
-    expect(await partner.quote({ note: NOTE, rules, gap: GAP })).toBe('');
+    expect(
+      await partner.quote({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+    ).toBe('');
 
     const down = new OllamaStudyPartner({
       model: 'g',
       host: 'http://127.0.0.1:9',
     });
     await expect(
-      down.quote({ note: NOTE, rules, gap: GAP }),
+      down.quote({ note: NOTE, rules, style: 'cornell', gap: GAP }),
     ).rejects.toBeInstanceOf(UnavailableError);
   });
 });

@@ -7,3 +7,4 @@ export * from './lib/text.js';
 export * from './lib/tier2-payload.js';
 export * from './lib/vocabulary.js';
 export * from './lib/study-round.js';
+export * from './lib/coaching-style.js';

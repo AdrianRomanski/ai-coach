@@ -38,5 +38,9 @@ describe('sparringRules', () => {
     expect(() => sparringRules({ maxFollowUps: -1 })).toThrow(DomainError);
     expect(() => sparringRules({ verbatimRunWords: 2 })).toThrow(DomainError);
     expect(() => sparringRules({ buzzwords: [' '] })).toThrow(DomainError);
+    expect(sparringRules().style).toBe('auto');
+    expect(() => sparringRules({ style: 'nope' as never })).toThrow(
+      /style must be auto/,
+    );
   });
 });

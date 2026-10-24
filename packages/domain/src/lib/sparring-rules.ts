@@ -1,3 +1,8 @@
+import {
+  COACHING_STYLES,
+  isCoachingStyle,
+  type CoachingStyle,
+} from './coaching-style.js';
 import { DomainError } from './errors.js';
 
 export const DEFAULT_BUZZWORDS = [
@@ -31,20 +36,12 @@ export const DEFAULT_BUZZWORDS = [
   'world-class',
 ];
 
-export const DEFAULT_SOCRATIC_RULES = [
-  'Ask exactly one question per turn.',
-  'Never explain, summarise or hint at the answer.',
-  'Demand the mechanism: how and why it works, step by step, not what it is called.',
-  'When an answer uses a term, ask the learner to define it in plain words, as if to a newcomer.',
-  'Probe the edges: what breaks, what the trade-off is, when it does not apply.',
-  'Challenge vague or hand-waving claims by asking for a concrete example.',
-];
-
 export const NEUTRAL_PROBE =
   'Walk me through that again step by step, as if I had never heard of it. What happens first, and why?';
 
 export interface SparringRules {
   buzzwords: string[];
+  style: CoachingStyle | 'auto';
   socraticRules: string[];
   maxFollowUps: number;
   maxRephrases: number;
@@ -55,7 +52,8 @@ export interface SparringRules {
 
 export const DEFAULT_SPARRING_RULES: SparringRules = {
   buzzwords: DEFAULT_BUZZWORDS,
-  socraticRules: DEFAULT_SOCRATIC_RULES,
+  style: 'auto',
+  socraticRules: [],
   maxFollowUps: 3,
   maxRephrases: 2,
   verbatimRunWords: 6,
@@ -86,6 +84,11 @@ export function sparringRules(
   wholeNumber('maxChallengeAttempts', rules.maxChallengeAttempts, 1, 5);
   if (rules.buzzwords.some((b) => !b.trim())) {
     throw new DomainError('Buzzwords cannot be empty');
+  }
+  if (rules.style !== 'auto' && !isCoachingStyle(rules.style)) {
+    throw new DomainError(
+      `style must be auto or one of ${COACHING_STYLES.join(', ')}, got ${rules.style}`,
+    );
   }
   if (rules.socraticRules.some((r) => !r.trim())) {
     throw new DomainError('Socratic rules cannot be empty');

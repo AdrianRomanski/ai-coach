@@ -26,7 +26,12 @@ describe('SparringConversation', () => {
       { action: 'probe', question: 'What would starve?' },
       conclude('pass'),
     );
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
 
     expect(await c.start()).toEqual({ kind: 'challenge', question: CHALLENGE });
     expect(await c.answer('Microtasks first.')).toEqual({
@@ -49,7 +54,12 @@ describe('SparringConversation', () => {
   it('asks again with the rejected challenge when one quotes the note, and gives up after the limit', async () => {
     const partner = new ScriptedPartner();
     partner.challenges.push(LEAK, CHALLENGE);
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
     await c.start();
     expect(partner.challengeRequests.map((r) => r.rejected)).toEqual([
       [],
@@ -63,6 +73,7 @@ describe('SparringConversation', () => {
         leaky,
         NOTE,
         sparringRules({ maxChallengeAttempts: 2 }),
+        'feynman',
       ).start(),
     ).rejects.toBeInstanceOf(ChallengeLeakError);
   });
@@ -74,7 +85,12 @@ describe('SparringConversation', () => {
       { action: 'probe', question: LEAK },
       { action: 'probe', question: LEAK },
     );
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
     await c.start();
 
     expect(await c.answer('Microtasks.')).toEqual({
@@ -87,7 +103,12 @@ describe('SparringConversation', () => {
   it('handles buzzwords locally without calling the partner', async () => {
     const partner = new ScriptedPartner();
     partner.challenges.push(CHALLENGE);
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
     await c.start();
 
     expect(await c.answer('It just works, magic.')).toMatchObject({
@@ -108,6 +129,7 @@ describe('SparringConversation', () => {
       partner,
       NOTE,
       sparringRules({ maxFollowUps: 1 }),
+      'feynman',
     );
     await c.start();
     await c.answer('a');
@@ -125,7 +147,12 @@ describe('SparringConversation', () => {
       new UnavailableError('sparring partner', 'Ollama is down'),
       conclude('pass'),
     );
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
     await c.start();
 
     await expect(c.answer('Microtasks first.')).rejects.toBeInstanceOf(
@@ -141,6 +168,8 @@ describe('SparringConversation', () => {
     const partner = new ScriptedPartner();
     partner.challenges.push({
       focus: 'Microtasks drain before the next task.',
+      scope: ['Microtask ordering', ' '],
+      jargon: [],
       challenge: CHALLENGE,
     });
     partner.turns.push(
@@ -148,14 +177,46 @@ describe('SparringConversation', () => {
       { action: 'probe', question: 'Why first?' },
       conclude('pass'),
     );
-    const c = new SparringConversation(partner, NOTE, sparringRules());
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
     await c.start();
     await c.answer('Microtasks.');
     await c.answer('Because the queue drains.');
+    expect(partner.turnRequests.map((r) => r.scope)).toEqual([
+      ['Microtask ordering'],
+      ['Microtask ordering'],
+      ['Microtask ordering'],
+    ]);
     expect(partner.turnRequests.map((r) => r.focus)).toEqual([
       'Microtasks drain before the next task.',
       'Microtasks drain before the next task.',
       'Microtasks drain before the next task.',
     ]);
+  });
+
+  it('bans the jargon the partner names for a feynman round', async () => {
+    const partner = new ScriptedPartner();
+    partner.challenges.push({
+      focus: 'F',
+      scope: [],
+      jargon: ['macrotask'],
+      challenge: CHALLENGE,
+    });
+    const c = new SparringConversation(
+      partner,
+      NOTE,
+      sparringRules(),
+      'feynman',
+    );
+    await c.start();
+    expect(await c.answer('The macrotask waits.')).toMatchObject({
+      kind: 'rephrase',
+      buzzwords: ['macrotask'],
+    });
+    expect(partner.challengeRequests[0]!.style).toBe('feynman');
   });
 });

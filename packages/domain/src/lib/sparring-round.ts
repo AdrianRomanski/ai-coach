@@ -131,7 +131,8 @@ export class SparringRound {
         `Leaned on buzzwords instead of mechanism: ${[...this.buzzwordsUsed].join(', ')}`,
       );
     }
-    this.conclusion = { verdict, gaps: allGaps, feedback };
+    const named = verdict === 'fail' && !allGaps.length ? 'pass' : verdict;
+    this.conclusion = { verdict: named, gaps: allGaps, feedback };
     return { ...this.conclusion, gaps: [...allGaps] };
   }
 

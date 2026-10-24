@@ -1,4 +1,5 @@
 import type {
+  CoachingStyle,
   Mastery,
   ParaBucket,
   Tier,
@@ -40,6 +41,7 @@ export interface NoteDetails extends NoteSummary {
   sessions: SessionEntry[];
   rawRole: RawRole;
   chapter: BookChapter | null;
+  style: CoachingStyle | null;
 }
 
 export interface InvalidSession {

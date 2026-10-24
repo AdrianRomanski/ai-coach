@@ -4,6 +4,7 @@ import {
   type ItemJudgement,
 } from '@ai-coach/domain';
 import {
+  FixedClassifier,
   InMemoryPending,
   InMemoryVault,
   ScriptedJudge,
@@ -60,6 +61,7 @@ function setup() {
       sessions: vault,
       pending,
       partner,
+      classifier: new FixedClassifier(),
       rules: sparringRules(),
       ladder,
     }),
@@ -88,6 +90,41 @@ async function sparOnce(
   const sparred: SparredNote[] = [{ note, result: conversation.result() }];
   return s.sparring.record(await s.sparring.plan(sparred, today));
 }
+
+describe('coaching style', () => {
+  it('comes from the flag, then the note, then the config, then the classifier', async () => {
+    const vault = new InMemoryVault({
+      [EVENT_LOOP]: 'Microtasks drain first.',
+    });
+    vault.put(PROMISES, 'A promise settles once.', {
+      rawRole: null,
+      style: 'devil',
+    });
+    const classifier = new FixedClassifier('cornell');
+    const make = (rules = sparringRules()) =>
+      new Sparring({
+        notes: vault,
+        sessions: vault,
+        pending: new InMemoryPending(),
+        partner: new ScriptedPartner(),
+        classifier,
+        rules,
+        ladder: DEFAULT_LADDER,
+      });
+
+    expect((await make().open(EVENT_LOOP, 'socratic')).conversation.style).toBe(
+      'socratic',
+    );
+    expect((await make().open(PROMISES)).conversation.style).toBe('devil');
+    expect(
+      (await make(sparringRules({ style: 'feynman' })).open(EVENT_LOOP))
+        .conversation.style,
+    ).toBe('feynman');
+    expect(classifier.classified).toEqual([]);
+    expect((await make().open(EVENT_LOOP)).conversation.style).toBe('cornell');
+    expect(classifier.classified).toEqual(['Event loop']);
+  });
+});
 
 describe('books split into chapters', () => {
   const BOOK = '3.Resources/0.Raw/Books/Tiago Forte/Building a Second Brain';
