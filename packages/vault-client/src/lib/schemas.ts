@@ -50,11 +50,22 @@ export const ListNotesResult = z.object({
 });
 export type ListNotesResult = z.infer<typeof ListNotesResult>;
 
+export const SessionEntry = z.object({
+  session_id: z.string(),
+  tier: z.union([z.literal(1), z.literal(2)]),
+  date: IsoDate,
+  verdict: Verdict,
+  gaps: z.array(z.string()),
+  next_review: IsoDate,
+});
+export type SessionEntry = z.infer<typeof SessionEntry>;
+
 export const NoteHistory = z.object({
   mastery: Mastery,
   nextReview: IsoDate.nullable(),
   lastSession: z.string().nullable(),
   sessions: z.number(),
+  entries: z.array(SessionEntry),
 });
 export type NoteHistory = z.infer<typeof NoteHistory>;
 

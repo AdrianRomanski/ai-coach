@@ -2,9 +2,10 @@
   "name": "@org/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "coach": "node packages/coach/dist/main.js"
+  },
   "private": true,
-  "dependencies": {},
   "devDependencies": {
     "@nx/js": "24.0.0",
     "@nx/vitest": "24.0.0",

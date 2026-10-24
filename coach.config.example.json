@@ -1,0 +1,23 @@
+{
+  "vault": "~/Documents/life-vault",
+  "docsMcpBin": "~/projects/kb-template/packages/cli/bin/docs-mcp.js",
+  "ollama": {
+    "model": "<a Gemma model from `ollama list`>",
+    "host": "http://127.0.0.1:11434"
+  },
+  "judge": {
+    "model": "gemini-4-argon",
+    "fallbackModel": "gemini-3.8-flash",
+    "thinkingLevel": "MEDIUM"
+  },
+  "sparring": {
+    "maxFollowUps": 3,
+    "maxRephrases": 2,
+    "verbatimRunWords": 6
+  },
+  "ladder": {
+    "failDays": 1,
+    "tier1PassDays": 3,
+    "tier2PassDays": [7, 14, 30, 60, 120, 240, 365]
+  }
+}

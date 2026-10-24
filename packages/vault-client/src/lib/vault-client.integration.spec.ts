@@ -189,6 +189,24 @@ describe('VaultClient against the real vault server', () => {
       mastery: 'tier2_passed',
       nextReview: '2026-11-08',
       sessions: 2,
+      entries: [
+        {
+          session_id: t1.session_id,
+          tier: 1,
+          date: '2026-10-24',
+          verdict: 'pass',
+          gaps: [],
+          next_review: '2026-11-01',
+        },
+        {
+          session_id: t2.session_id,
+          tier: 2,
+          date: '2026-10-25',
+          verdict: 'pass',
+          gaps: [],
+          next_review: '2026-11-08',
+        },
+      ],
     });
     expect(await readdir(join(root, 'Coach', 'sessions'))).toHaveLength(2);
 
