@@ -3,7 +3,8 @@
   "docsMcpBin": "~/projects/kb-template/packages/cli/bin/docs-mcp.js",
   "ollama": {
     "model": "<a Gemma model from `ollama list`>",
-    "host": "http://127.0.0.1:11434"
+    "host": "http://127.0.0.1:11434",
+    "contextWindow": 16384
   },
   "judge": {
     "model": "gemini-4-argon",

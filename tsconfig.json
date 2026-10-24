@@ -4,19 +4,25 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/vault-client"
+      "path": "./packages/domain"
     },
     {
-      "path": "./packages/sparring-partner"
+      "path": "./packages/application"
     },
     {
-      "path": "./packages/external-judge"
+      "path": "./packages/adapter-vault-mcp"
     },
     {
-      "path": "./packages/scheduler"
+      "path": "./packages/adapter-ollama"
     },
     {
-      "path": "./packages/coach"
+      "path": "./packages/adapter-gemini"
+    },
+    {
+      "path": "./packages/adapter-local-state"
+    },
+    {
+      "path": "./packages/cli"
     }
   ],
   "compilerOptions": {}
