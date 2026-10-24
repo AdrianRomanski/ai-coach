@@ -32,6 +32,8 @@ import type {
   SessionEntry,
   SessionLog,
   VaultFiling,
+  BookChapter,
+  RawRole,
 } from '../lib/ports/vault.js';
 
 const FOLDERS: Record<string, ParaBucket> = {
@@ -47,6 +49,8 @@ interface StoredNote {
   title: string;
   body: string;
   coachId: string | null;
+  rawRole: RawRole;
+  chapter: BookChapter | null;
 }
 
 interface StoredSession {
@@ -72,9 +76,20 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
     for (const [path, body] of Object.entries(notes)) this.put(path, body);
   }
 
-  put(path: string, body: string): void {
+  put(
+    path: string,
+    body: string,
+    raw: { rawRole: RawRole; chapter?: BookChapter } = { rawRole: null },
+  ): void {
     const title = path.split('/').pop()!.replace(/\.md$/, '');
-    this.notes.set(path, { path, title, body, coachId: null });
+    this.notes.set(path, {
+      path,
+      title,
+      body,
+      coachId: null,
+      rawRole: raw.rawRole,
+      chapter: raw.chapter ?? null,
+    });
   }
 
   private bucket(path: string): ParaBucket | null {
@@ -144,12 +159,16 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
       ...this.summary(note),
       body: note.body,
       sessions: this.entries(note.coachId),
+      rawRole: note.rawRole,
+      chapter: note.chapter,
     };
   }
 
   async dueForReview(today: string): Promise<DueReport> {
     const resources = [...this.notes.values()]
-      .filter((n) => this.bucket(n.path) === 'resources')
+      .filter(
+        (n) => this.bucket(n.path) === 'resources' && n.rawRole !== 'index',
+      )
       .map((n) => this.summary(n));
     return {
       today,

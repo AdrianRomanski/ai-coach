@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import {
+  DEFAULT_CONTEXT_WINDOW,
   DEFAULT_OLLAMA_HOST,
   type OllamaOptions,
 } from '@ai-coach/adapter-ollama';
@@ -22,6 +23,7 @@ const ConfigFile = z.strictObject({
     .strictObject({
       model: z.string().min(1).optional(),
       host: z.string().min(1).optional(),
+      contextWindow: z.number().int().min(2048).optional(),
     })
     .optional(),
   judge: z
@@ -57,7 +59,7 @@ export interface CoachConfig {
   vault: string | undefined;
   docsMcpBin: string;
   stateDir: string;
-  ollama: { model: string | undefined; host: string };
+  ollama: { model: string | undefined; host: string; contextWindow: number };
   judge: {
     model: string | undefined;
     fallbackModel: string | undefined;
@@ -175,6 +177,10 @@ export function loadConfig(options: LoadConfigOptions = {}): CoachConfig {
     ollama: {
       model: fromEnv('OLLAMA_MODEL') ?? file.ollama?.model,
       host: fromEnv('OLLAMA_HOST') ?? file.ollama?.host ?? DEFAULT_OLLAMA_HOST,
+      contextWindow:
+        contextWindow(fromEnv('OLLAMA_NUM_CTX')) ??
+        file.ollama?.contextWindow ??
+        DEFAULT_CONTEXT_WINDOW,
     },
     judge: {
       model: fromEnv('GEMINI_JUDGE_MODEL') ?? file.judge?.model,
@@ -208,5 +214,20 @@ export function ollamaOptions(config: CoachConfig): OllamaOptions {
       'No Gemma model configured: set OLLAMA_MODEL or ollama.model in coach.config.json to a model from `ollama list`',
     );
   }
-  return { model: config.ollama.model, host: config.ollama.host };
+  return {
+    model: config.ollama.model,
+    host: config.ollama.host,
+    contextWindow: config.ollama.contextWindow,
+  };
+}
+
+function contextWindow(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const tokens = Number(value);
+  if (!Number.isInteger(tokens) || tokens < 2048) {
+    throw new ConfigError(
+      `OLLAMA_NUM_CTX must be a whole number of tokens, at least 2048, got ${value}`,
+    );
+  }
+  return tokens;
 }

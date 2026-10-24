@@ -25,9 +25,21 @@ export interface SessionEntry {
   nextReview: string;
 }
 
+export interface BookChapter {
+  book: string;
+  part: string | null;
+  chapter: number;
+  section: string | null;
+  pages: string;
+}
+
+export type RawRole = 'index' | 'chapter' | null;
+
 export interface NoteDetails extends NoteSummary {
   body: string;
   sessions: SessionEntry[];
+  rawRole: RawRole;
+  chapter: BookChapter | null;
 }
 
 export interface InvalidSession {

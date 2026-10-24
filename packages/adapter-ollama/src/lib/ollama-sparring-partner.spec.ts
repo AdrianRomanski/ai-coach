@@ -1,6 +1,10 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { UnavailableError, UnusableReplyError } from '@ai-coach/application';
+import {
+  ContextTooSmallError,
+  UnavailableError,
+  UnusableReplyError,
+} from '@ai-coach/application';
 import { sparringRules } from '@ai-coach/domain';
 import {
   OfflineViolationError,
@@ -42,14 +46,12 @@ describe('OllamaSparringPartner', () => {
         bodies.push(JSON.parse(raw));
         const next = replies.shift();
         const content = typeof next === 'string' ? next : JSON.stringify(next);
-        res
-          .writeHead(200, { 'content-type': 'application/json' })
-          .end(
-            JSON.stringify({
-              message: { role: 'assistant', content },
-              done: true,
-            }),
-          );
+        res.writeHead(200, { 'content-type': 'application/json' }).end(
+          JSON.stringify({
+            message: { role: 'assistant', content },
+            done: true,
+          }),
+        );
       });
     });
     await new Promise<void>((resolve) =>
@@ -203,5 +205,29 @@ describe('OllamaSparringPartner', () => {
     await expect(
       fetch('https://generativelanguage.googleapis.com/'),
     ).rejects.toThrow(/network disabled/);
+  });
+
+  it('sends the context window and refuses a note that would not fit, before any request', async () => {
+    const partner = new OllamaSparringPartner({
+      model: 'g',
+      host,
+      contextWindow: 4096,
+    });
+    replies.push({ challenge: 'Ok?' });
+    await partner.openingChallenge({ note: NOTE, rules, rejected: [] });
+    expect(bodies[0]!['options']).toMatchObject({ num_ctx: 4096 });
+
+    const chapter = { title: 'Long chapter', body: 'word '.repeat(4_000) };
+    await expect(
+      partner.openingChallenge({ note: chapter, rules, rejected: [] }),
+    ).rejects.toBeInstanceOf(ContextTooSmallError);
+    expect(bodies).toHaveLength(1);
+
+    replies.push({ challenge: 'Fits now?' });
+    const roomy = new OllamaSparringPartner({ model: 'g', host });
+    expect(
+      await roomy.openingChallenge({ note: chapter, rules, rejected: [] }),
+    ).toBe('Fits now?');
+    expect(bodies[1]!['options']).toMatchObject({ num_ctx: 16_384 });
   });
 });

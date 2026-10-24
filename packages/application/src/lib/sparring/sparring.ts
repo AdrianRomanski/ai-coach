@@ -83,6 +83,11 @@ export class Sparring {
         `${path}: only notes under 3.Resources can be sparred`,
       );
     }
+    if (note.rawRole === 'index') {
+      throw new NotSparrableError(
+        `${path} is a book's index: spar one of its chapters instead`,
+      );
+    }
     return {
       note,
       conversation: new SparringConversation(

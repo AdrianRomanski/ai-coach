@@ -2,6 +2,7 @@ import {
   UnavailableError,
   UnusableReplyError,
   VaultRefusedError,
+  type BookChapter,
   type DueReport,
   type FilingPlan,
   type FilingRequest,
@@ -18,6 +19,7 @@ import {
   type ParaBucket,
   type Tier2Payload,
 } from '@ai-coach/domain';
+import { z } from 'zod';
 import type { FilingResult, ReadNoteResult } from './schemas.js';
 import {
   VaultClient,
@@ -42,6 +44,22 @@ function plan(result: FilingResult): FilingPlan {
   };
 }
 
+const ChapterFrontmatter = z.object({
+  book: z.string(),
+  part: z.string().optional(),
+  chapter: z.number(),
+  section: z.string().optional(),
+  pages: z.string(),
+});
+
+function chapterOf(note: ReadNoteResult): BookChapter | null {
+  if (note.rawRole !== 'chapter') return null;
+  const parsed = ChapterFrontmatter.safeParse(note.frontmatter);
+  if (!parsed.success) return null;
+  const { book, part, chapter, section, pages } = parsed.data;
+  return { book, part: part ?? null, chapter, section: section ?? null, pages };
+}
+
 function details(note: ReadNoteResult): NoteDetails {
   return {
     path: note.path,
@@ -52,6 +70,8 @@ function details(note: ReadNoteResult): NoteDetails {
     mastery: note.history.mastery,
     nextReview: note.history.nextReview,
     body: note.body,
+    rawRole: note.rawRole,
+    chapter: chapterOf(note),
     sessions: note.history.entries.map((e) => ({
       sessionId: e.session_id,
       tier: e.tier,

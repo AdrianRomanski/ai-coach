@@ -44,3 +44,7 @@ export class ChallengeLeakError extends ApplicationError {
 export class PayloadMismatchError extends ApplicationError {
   override readonly name = 'PayloadMismatchError';
 }
+
+export class ContextTooSmallError extends ApplicationError {
+  override readonly name = 'ContextTooSmallError';
+}

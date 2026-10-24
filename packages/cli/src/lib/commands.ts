@@ -5,6 +5,7 @@ import {
   type FilingPlan,
   type FilingRequest,
   type JudgedSession,
+  type NoteDetails,
   type SparredNote,
   type Sparring,
   type Turn,
@@ -71,6 +72,12 @@ export async function list(coach: Coach, term: Terminal): Promise<void> {
       `  ${n.title} ${paint(MASTERY_STYLE[n.mastery], n.mastery)} ${paint('dim', [n.nextReview, n.path].filter(Boolean).join('  '))}`,
     );
   }
+}
+
+function whereFrom(note: NoteDetails): string {
+  if (!note.chapter) return note.container ?? '3.Resources';
+  const { book, part, pages } = note.chapter;
+  return [book, part, `pages ${pages}`].filter(Boolean).join(', ');
 }
 
 function showTurn(term: Terminal, turn: Turn): void {
@@ -156,10 +163,7 @@ export async function spar(
     const { note, conversation } = opened;
     term.print();
     term.print(
-      paint(
-        'bold',
-        `── ${note.title} ${paint('dim', `(${note.container ?? '3.Resources'})`)}`,
-      ),
+      paint('bold', `── ${note.title} ${paint('dim', `(${whereFrom(note)})`)}`),
     );
     try {
       showTurn(term, await conversation.start());

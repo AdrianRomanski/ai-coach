@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import {
+  ContextTooSmallError,
   UnavailableError,
   UnusableReplyError,
   type ChallengeRequest,
@@ -15,6 +16,9 @@ import {
 } from './prompts.js';
 
 export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
+export const DEFAULT_CONTEXT_WINDOW = 16_384;
+const REPLY_RESERVE = 1_024;
+const CHARS_PER_TOKEN = 3;
 const SERVICE = 'sparring partner';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 
@@ -23,6 +27,7 @@ export interface OllamaOptions {
   host?: string;
   temperature?: number;
   timeoutMs?: number;
+  contextWindow?: number;
   fetch?: typeof fetch;
   nonce?: () => string;
 }
@@ -129,6 +134,14 @@ export class OllamaSparringPartner implements SparringPartner {
     messages: ChatMessage[],
     format: Record<string, unknown>,
   ): Promise<string> {
+    const contextWindow = this.options.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+    const chars = messages.reduce((sum, m) => sum + m.content.length, 0);
+    const estimate = Math.ceil(chars / CHARS_PER_TOKEN);
+    if (estimate > contextWindow - REPLY_RESERVE) {
+      throw new ContextTooSmallError(
+        `This note needs about ${estimate} tokens, but Gemma's context window is ${contextWindow}: raise ollama.contextWindow or OLLAMA_NUM_CTX`,
+      );
+    }
     const doFetch = this.options.fetch ?? fetch;
     let response: Response;
     try {
@@ -140,7 +153,10 @@ export class OllamaSparringPartner implements SparringPartner {
           messages,
           format,
           stream: false,
-          options: { temperature: this.options.temperature ?? 0.4 },
+          options: {
+            temperature: this.options.temperature ?? 0.4,
+            num_ctx: contextWindow,
+          },
         }),
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 120_000),
       });

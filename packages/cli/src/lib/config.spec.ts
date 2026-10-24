@@ -35,7 +35,11 @@ describe('loadConfig', () => {
         'docs-mcp.js',
       ),
       stateDir: join(dir, 'home', '.local', 'state', 'ai-coach'),
-      ollama: { model: undefined, host: 'http://127.0.0.1:11434' },
+      ollama: {
+        model: undefined,
+        host: 'http://127.0.0.1:11434',
+        contextWindow: 16_384,
+      },
       judge: {
         model: undefined,
         fallbackModel: undefined,
@@ -53,7 +57,7 @@ describe('loadConfig', () => {
       JSON.stringify({
         vault: '~/Documents/life-vault',
         docsMcpBin: './bin/docs-mcp.js',
-        ollama: { model: 'gemma-from-file' },
+        ollama: { model: 'gemma-from-file', contextWindow: 8192 },
         judge: { thinkingLevel: 'HIGH' },
         sparring: { buzzwords: ['synergy'], maxFollowUps: 1 },
         ladder: { tier2PassDays: [5, 10] },
@@ -64,6 +68,7 @@ describe('loadConfig', () => {
       env: {
         ...base().env,
         OLLAMA_MODEL: 'gemma-from-env',
+        OLLAMA_NUM_CTX: '32768',
         GEMINI_JUDGE_FALLBACK_MODEL: 'gemini-3.8-flash',
       },
     });
@@ -71,7 +76,7 @@ describe('loadConfig', () => {
       configFile: join(dir, 'coach.config.json'),
       vault: join(dir, 'home', 'Documents', 'life-vault'),
       docsMcpBin: join(dir, 'bin', 'docs-mcp.js'),
-      ollama: { model: 'gemma-from-env' },
+      ollama: { model: 'gemma-from-env', contextWindow: 32_768 },
       judge: { thinkingLevel: 'HIGH', fallbackModel: 'gemini-3.8-flash' },
       ladder: { tier2PassDays: [5, 10], failDays: 1 },
     });
@@ -99,5 +104,8 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({ ...base(), env: { GEMINI_JUDGE_THINKING_LEVEL: 'LOW' } }),
     ).toThrow(/MEDIUM or HIGH/);
+    expect(() =>
+      loadConfig({ ...base(), env: { OLLAMA_NUM_CTX: 'lots' } }),
+    ).toThrow(/OLLAMA_NUM_CTX/);
   });
 });

@@ -15,3 +15,5 @@ Every important or major change to ai-coach ships with an ADR in this folder; AD
 | [0009](0009-a-terminal-cli-with-previews-before-every-write.md)         | Drive the coach from a terminal CLI that previews every write                       | accepted |
 | [0010](0010-test-each-layer-and-drop-server-dependent-tests-for-now.md) | Test each layer on its own, and drop tests that need the kb-template server for now | accepted |
 | [0011](0011-source-code-carries-no-comments.md)                         | Source code carries no comments                                                     | accepted |
+| [0012](0012-spar-book-chapters-never-the-book-index.md)                 | Spar book chapters, never the book index                                            | accepted |
+| [0013](0013-set-gemma-context-window-explicitly.md)                     | Set Gemma's context window explicitly and refuse prompts that would not fit         | accepted |

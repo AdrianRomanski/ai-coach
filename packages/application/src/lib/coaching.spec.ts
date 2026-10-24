@@ -89,6 +89,53 @@ async function sparOnce(
   return s.sparring.record(await s.sparring.plan(sparred, today));
 }
 
+describe('books split into chapters', () => {
+  const BOOK = '3.Resources/0.Raw/Books/Tiago Forte/Building a Second Brain';
+  const INDEX = `${BOOK}/text.md`;
+  const CHAPTER = `${BOOK}/chapters/02 Capture.md`;
+
+  function withBook() {
+    const s = setup();
+    s.vault.put(INDEX, 'The text is in the chapter notes.', {
+      rawRole: 'index',
+    });
+    s.vault.put(CHAPTER, 'Keep what resonates.', {
+      rawRole: 'chapter',
+      chapter: {
+        book: 'Building a Second Brain',
+        part: 'Part One',
+        chapter: 2,
+        section: null,
+        pages: '40-58',
+      },
+    });
+    return s;
+  }
+
+  it('offers chapters, never the index, and spars a chapter like any note', async () => {
+    const s = withBook();
+    const offered = (await s.sparring.candidates('2026-10-24')).map(
+      (c) => c.path,
+    );
+    expect(offered).toContain(CHAPTER);
+    expect(offered).not.toContain(INDEX);
+
+    const { note } = await s.sparring.open(CHAPTER);
+    expect(note.chapter).toMatchObject({
+      book: 'Building a Second Brain',
+      pages: '40-58',
+    });
+  });
+
+  it('refuses the index before any dialogue starts', async () => {
+    const s = withBook();
+    await expect(s.sparring.open(INDEX)).rejects.toThrow(
+      /book's index: spar one of its chapters/,
+    );
+    expect(s.partner.challengeRequests).toEqual([]);
+  });
+});
+
 describe('coaching use cases against in-memory adapters', () => {
   it('offers due and never-sparred Resources notes, and resolves coach_ids', async () => {
     const s = setup();

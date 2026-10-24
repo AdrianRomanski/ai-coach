@@ -74,6 +74,10 @@ export const ReadNoteResult = z.object({
   title: z.string(),
   bucket: ParaBucket.nullable(),
   container: z.string().nullable(),
+  rawRole: z
+    .enum(['index', 'chapter'])
+    .nullish()
+    .transform((role) => role ?? null),
   coachId: z.string().nullable(),
   history: NoteHistory,
   frontmatter: z.record(z.string(), z.unknown()),
