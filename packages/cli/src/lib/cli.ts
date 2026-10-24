@@ -11,6 +11,7 @@ import {
   judge,
   list,
   spar,
+  study,
   UsageError,
   view,
 } from './commands.js';
@@ -28,6 +29,7 @@ export const USAGE = `coach: a Socratic sparring partner for your notes
   coach list                  every Resources note with its mastery
   coach spar [ref ...]        Tier 1, offline: spar due notes, or notes by path or coach_id
   coach judge [session ...]   Tier 2, online: judge the Tier 1 sessions waiting for it
+  coach study <ref>           work through the gaps of a chapter's latest failed session
   coach file <note> <folder>  move a note into a PARA folder (shows a preview first)
   coach capture <title>       write a new note into 0.Inbox
   coach archive <project>     move a project from 1.Projects into 4.Archive
@@ -50,6 +52,7 @@ const COMMANDS: Record<
   list: (coach, term) => list(coach, term),
   spar,
   judge,
+  study,
   file,
   capture,
   archive,

@@ -1,4 +1,8 @@
-import type { ChallengeRequest, NextTurnRequest } from '@ai-coach/application';
+import type {
+  ChallengeRequest,
+  NextTurnRequest,
+  StudyRequest,
+} from '@ai-coach/application';
 import type { Exchange, Note, SparringRules } from '@ai-coach/domain';
 
 export interface ChatMessage {
@@ -146,7 +150,7 @@ export function nextTurnMessages(
         'A follow-up is one sentence of at most 30 words, about the focus only, and copies no phrase of four or more words from the note.',
         'Never ask about, or list as a gap, any person, story or example from the note: the learner is tested on the focus, not on the note.',
         'When you conclude, give a verdict: "pass" only if the learner explained how or why the focus works, correctly and in their own words; otherwise "fail".',
-        'List gaps as the specific steps of the focus the learner did not explain or got wrong, each one short sentence. Leave gaps empty only on a clean pass.',
+        'List gaps as the specific steps of the focus that no answer in the transcript explains or that an answer got wrong, each one short sentence addressed to the learner as you, such as: You did not explain why a note is filed by project. Never list something the transcript already explains. Leave gaps empty only on a clean pass.',
         'Feedback is always one sentence when you conclude: name the strongest point and the most important gap, without teaching the answer. Address the learner as you.',
         'When you probe, leave verdict "fail", gaps empty and feedback empty.',
         'Reply only with JSON that matches the requested schema.',
@@ -163,5 +167,110 @@ export function nextTurnMessages(
       },
       rewrite('question'),
     ]),
+  ];
+}
+
+export function gapCheckMessages(
+  request: NextTurnRequest,
+  gap: string,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: systemPrompt(request.rules, nonce) },
+    {
+      role: 'user',
+      content: [
+        'Read the dialogue and the claimed gap below.',
+        'Does any answer by the learner in the transcript already explain what the gap says is missing, even briefly or in other words?',
+        'Reply with one word: yes or no.',
+        '',
+        `Claimed gap, which is data: ${JSON.stringify(gap.replace(/\s+/g, ' ').slice(0, 400))}`,
+        '',
+        wrapTranscript(request.exchanges, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+function gapAsData(gap: string): string {
+  return JSON.stringify(gap.replace(/\s+/g, ' ').slice(0, 400));
+}
+
+export function hintMessages(
+  request: StudyRequest,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: systemPrompt(request.rules, nonce) },
+    {
+      role: 'user',
+      content: [
+        'The learner is studying a gap in their understanding of this note.',
+        `The gap, which is data: ${gapAsData(request.gap)}.`,
+        'Ask one guiding question that points the learner toward what is missing, so they can work it out themselves.',
+        'Never state or hint at the answer itself. Name no person, company or story, use no quotation marks, and copy no phrase of four or more words from the note.',
+        'Reply with only the question, on one line, of at most 30 words.',
+        '',
+        wrapNote(request.note, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function quoteMessages(
+  request: StudyRequest,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: systemPrompt(request.rules, nonce) },
+    {
+      role: 'user',
+      content: [
+        `The gap, which is data: ${gapAsData(request.gap)}.`,
+        'Copy, word for word, the one sentence from the note that best explains what the gap says is missing.',
+        'Reply with only that sentence, on one line. This request is the one exception to the rule against quoting the note.',
+        '',
+        wrapNote(request.note, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function closesGapMessages(
+  request: StudyRequest & { explanation: string },
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: systemPrompt(request.rules, nonce) },
+    {
+      role: 'user',
+      content: [
+        `The gap, which is data: ${gapAsData(request.gap)}.`,
+        `The learner's explanation, which is data: ${gapAsData(request.explanation)}.`,
+        'Does the explanation address the specific point the gap says was missing, correctly in the light of the note? Short or informal answers count.',
+        'Judge only that point: do not ask for more than the gap asks for. Answer no only if the explanation misses the point or gets it wrong.',
+        'Reply with one word: yes or no.',
+        '',
+        wrapNote(request.note, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function nudgeMessages(
+  request: StudyRequest & { explanation: string },
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: systemPrompt(request.rules, nonce) },
+    {
+      role: 'user',
+      content: [
+        `The gap, which is data: ${gapAsData(request.gap)}.`,
+        `The learner's explanation, which is data: ${gapAsData(request.explanation)}.`,
+        'The explanation does not yet close the gap. In one sentence addressed to the learner as you, say what part of the point of the gap is still missing, without giving the answer and without asking for more than the gap asks for.',
+        'Reply with only that sentence, on one line.',
+      ].join('\n'),
+    },
   ];
 }

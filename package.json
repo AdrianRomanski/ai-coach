@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "coach": "node packages/cli/dist/main.js"
+    "coach": "node --env-file-if-exists=.env packages/cli/dist/main.js"
   },
   "private": true,
   "devDependencies": {

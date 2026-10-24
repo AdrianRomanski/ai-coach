@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
 import {
   ChallengeLeakError,
+  NotFoundError,
   NotSparrableError,
   type FilingPlan,
   type FilingRequest,
   type JudgedSession,
   type NoteDetails,
   type SparredNote,
+  type StudyOutcome,
+  type StudyPrompt,
   type Sparring,
   type Turn,
 } from '@ai-coach/application';
@@ -201,6 +204,14 @@ export async function spar(
   term.print(
     `Recorded ${recorded.sessionId}. Run ${paint('bold', 'coach judge')} when you are back online.`,
   );
+  const failed = recorded.items
+    .map((item, i) => ({
+      path: item.notePath,
+      title: plan.titles[i]!,
+      verdict: item.verdict,
+    }))
+    .filter((item) => item.verdict === 'fail');
+  await offerStudy(coach, term, failed);
 }
 
 function showJudged(term: Terminal, judged: JudgedSession): void {
@@ -262,8 +273,137 @@ export async function judge(
       }
     }
     const recorded = await judging.record(judged);
-    if (recorded) term.print(`Recorded ${recorded.sessionId}.`);
+    if (recorded) {
+      term.print(`Recorded ${recorded.sessionId}.`);
+      await offerStudy(
+        coach,
+        term,
+        judged.notes.filter((n) => n.judgement.verdict === 'fail'),
+      );
+    }
   }
+}
+
+async function offerStudy(
+  coach: Coach,
+  term: Terminal,
+  failed: { path: string; title: string }[],
+): Promise<void> {
+  for (const note of failed) {
+    if (await confirm(term, `Study the gaps for ${note.title} now?`, true)) {
+      await runStudy(coach, term, note.path);
+    }
+  }
+}
+
+function showOutcome(term: Terminal, outcome: StudyOutcome): void {
+  switch (outcome.kind) {
+    case 'rephrase':
+      term.print(
+        `${paint('yellow', 'coach>')} No buzzwords: ${outcome.buzzwords.join(', ')}. Say it again as the mechanism, in plain words.`,
+      );
+      break;
+    case 'retry':
+      term.print(`${paint('yellow', 'coach>')} ${outcome.nudge}`);
+      if (outcome.passage) {
+        const where = outcome.passage.page
+          ? `page ${outcome.passage.page}`
+          : 'the note';
+        term.print(paint('dim', `  Reread ${where}, in the author's words:`));
+        term.print(paint('italic', `  "${outcome.passage.text}"`));
+      } else {
+        term.print(paint('dim', '  Reread the chapter for this one.'));
+      }
+      term.print(paint('dim', '  Try again in your own words.'));
+      break;
+    case 'closed':
+      term.print(paint('green', '  Closed.'));
+      break;
+    case 'unresolved':
+      term.print(`${paint('red', '  Still open:')} ${outcome.nudge}`);
+      break;
+  }
+}
+
+async function runStudy(
+  coach: Coach,
+  term: Terminal,
+  path: string,
+): Promise<void> {
+  const studying = coach.studying();
+  let opened;
+  try {
+    opened = await studying.open(path);
+  } catch (err) {
+    if (!(err instanceof NotFoundError)) throw err;
+    term.print(err.message);
+    return;
+  }
+  const { note, session } = opened;
+  term.print();
+  term.print(
+    paint(
+      'bold',
+      `── Studying ${note.title} ${paint('dim', `(${whereFrom(note)})`)}`,
+    ),
+  );
+  term.print(
+    paint(
+      'dim',
+      'Explain each gap in your own words. A blank line sends; /skip moves on; /quit stops.',
+    ),
+  );
+
+  let prompt: StudyPrompt | null = await session.start();
+  study: while (prompt) {
+    term.print();
+    term.print(
+      paint(
+        'bold',
+        `Gap ${prompt.index + 1} of ${prompt.total}: ${prompt.gap}`,
+      ),
+    );
+    term.print(`${paint('cyan', 'coach>')} ${prompt.hint}`);
+    for (;;) {
+      const input = await readAnswer(term);
+      if (input.kind === 'quit') break study;
+      if (input.kind === 'skip') {
+        prompt = await session.skip();
+        continue study;
+      }
+      const outcome = await session.answer(input.text);
+      showOutcome(term, outcome);
+      if (outcome.kind === 'closed' || outcome.kind === 'unresolved') {
+        prompt = outcome.next;
+        continue study;
+      }
+    }
+  }
+
+  const closed = session.gaps.filter((g) => g.status === 'closed').length;
+  term.print();
+  term.print(
+    paint('bold', `Closed ${closed} of ${session.gaps.length} gap(s).`),
+  );
+  const capture = studying.explanationsNote(note, session, coach.clock.today());
+  if (capture) {
+    await previewThenApply(
+      coach,
+      term,
+      'Keep your explanations as a note',
+      capture,
+    );
+  }
+}
+
+export async function study(
+  coach: Coach,
+  term: Terminal,
+  args: string[],
+): Promise<void> {
+  if (args.length !== 1)
+    throw new UsageError('Usage: coach study <note path or coach_id>');
+  await runStudy(coach, term, await coach.studying().resolve(args[0]!));
 }
 
 function showPlan(term: Terminal, plan: FilingPlan): void {

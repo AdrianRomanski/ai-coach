@@ -44,3 +44,20 @@ export interface JudgeReport {
 export interface Judge {
   judge(payload: Tier2Payload): Promise<JudgeReport>;
 }
+
+export interface StudyRequest {
+  note: Note;
+  rules: SparringRules;
+  gap: string;
+}
+
+export interface StudyCheck {
+  closed: boolean;
+  nudge: string;
+}
+
+export interface StudyPartner {
+  hint(request: StudyRequest): Promise<string>;
+  quote(request: StudyRequest): Promise<string>;
+  check(request: StudyRequest & { explanation: string }): Promise<StudyCheck>;
+}

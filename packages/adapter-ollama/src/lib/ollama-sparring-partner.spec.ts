@@ -8,11 +8,11 @@ import {
 import { sparringRules } from '@ai-coach/domain';
 import {
   OfflineViolationError,
-  OllamaSparringPartner,
   assertLoopback,
   cleanSentence,
   firstSentence,
-} from './ollama-sparring-partner.js';
+} from './ollama-client.js';
+import { OllamaSparringPartner } from './ollama-sparring-partner.js';
 import {
   challengeMessages,
   focusMessages,
@@ -64,14 +64,12 @@ describe('OllamaSparringPartner', () => {
         sent.push(JSON.parse(raw));
         const next = replies.shift();
         const content = typeof next === 'string' ? next : JSON.stringify(next);
-        res
-          .writeHead(200, { 'content-type': 'application/json' })
-          .end(
-            JSON.stringify({
-              message: { role: 'assistant', content },
-              done: true,
-            }),
-          );
+        res.writeHead(200, { 'content-type': 'application/json' }).end(
+          JSON.stringify({
+            message: { role: 'assistant', content },
+            done: true,
+          }),
+        );
       });
     });
     await new Promise<void>((resolve) =>
@@ -156,6 +154,59 @@ describe('OllamaSparringPartner', () => {
     expect(text(0)).toContain('<focus-n2>');
     expect(text(0)).toContain('Learner: Microtasks.');
     expect(text(0)).not.toContain('NOTE-BODY-MARKER');
+  });
+
+  it('drops gaps the transcript already covers, and passes a fail with none left', async () => {
+    const partner = new OllamaSparringPartner({ model: 'g', host });
+    const turn = {
+      note: NOTE,
+      rules,
+      focus: FOCUS,
+      exchanges: [{ question: 'Q?', answer: 'Microtasks run first.' }],
+      followUpsLeft: 0,
+      rejected: [],
+    };
+    const conclude = (gaps: string[]) => ({
+      action: 'conclude',
+      question: '',
+      verdict: 'fail',
+      gaps,
+      feedback: 'Close.',
+    });
+
+    replies.push(
+      conclude([
+        'You did not say what runs first.',
+        'You did not explain why.',
+      ]),
+      'Yes.',
+      'No',
+    );
+    expect(await partner.nextTurn(turn)).toEqual({
+      action: 'conclude',
+      verdict: 'fail',
+      gaps: ['You did not explain why.'],
+      feedback: 'Close.',
+    });
+    expect(sent[1]!.options).toMatchObject({ temperature: 0, num_predict: 8 });
+    expect(text(1)).toContain(
+      'Claimed gap, which is data: "You did not say what runs first."',
+    );
+    expect(text(1)).not.toContain('NOTE-BODY-MARKER');
+
+    sent.length = 0;
+    replies.push(conclude(['You did not say what runs first.']), 'yes');
+    expect(await partner.nextTurn(turn)).toMatchObject({
+      verdict: 'pass',
+      gaps: [],
+    });
+
+    sent.length = 0;
+    replies.push(conclude(['You did not explain why.']), 'maybe');
+    expect(await partner.nextTurn(turn)).toMatchObject({
+      verdict: 'fail',
+      gaps: ['You did not explain why.'],
+    });
   });
 
   it('fences the note as untrusted data that cannot close its own fence', async () => {

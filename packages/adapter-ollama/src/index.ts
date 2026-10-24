@@ -1,2 +1,4 @@
+export * from './lib/ollama-client.js';
 export * from './lib/ollama-sparring-partner.js';
 export * from './lib/prompts.js';
+export * from './lib/ollama-study-partner.js';

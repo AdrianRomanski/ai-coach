@@ -7,3 +7,4 @@ export * from './lib/ports/vault.js';
 export * from './lib/review/review.js';
 export * from './lib/sparring/conversation.js';
 export * from './lib/sparring/sparring.js';
+export * from './lib/studying/studying.js';

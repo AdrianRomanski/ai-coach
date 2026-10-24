@@ -3,16 +3,21 @@ import {
   FilePendingJudgements,
   SystemClock,
 } from '@ai-coach/adapter-local-state';
-import { OllamaSparringPartner } from '@ai-coach/adapter-ollama';
+import {
+  OllamaSparringPartner,
+  OllamaStudyPartner,
+} from '@ai-coach/adapter-ollama';
 import { McpVault } from '@ai-coach/adapter-vault-mcp';
 import {
   Filing,
   Judging,
   Review,
   Sparring,
+  Studying,
   type Clock,
   type Judge,
   type SparringPartner,
+  type StudyPartner,
 } from '@ai-coach/application';
 import { ollamaOptions, type CoachConfig } from './config.js';
 
@@ -22,12 +27,14 @@ export interface Coach {
   filing: Filing;
   sparring(): Sparring;
   judging(): Judging;
+  studying(): Studying;
   close(): Promise<void>;
 }
 
 export interface AdapterOverrides {
   partner?: (config: CoachConfig) => SparringPartner;
   judge?: (config: CoachConfig) => Judge;
+  studyPartner?: (config: CoachConfig) => StudyPartner;
 }
 
 export async function composeCoach(
@@ -55,6 +62,14 @@ export async function composeCoach(
           new OllamaSparringPartner(ollamaOptions(config)),
         rules: config.sparring,
         ladder: config.ladder,
+      }),
+    studying: () =>
+      new Studying({
+        notes: vault,
+        partner:
+          overrides.studyPartner?.(config) ??
+          new OllamaStudyPartner(ollamaOptions(config)),
+        rules: config.sparring,
       }),
     judging: () =>
       new Judging({

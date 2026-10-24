@@ -13,6 +13,9 @@ import type {
   NextTurnRequest,
   ChallengeRequest,
   OpeningChallenge,
+  StudyCheck,
+  StudyPartner,
+  StudyRequest,
   SparringPartner,
 } from '../lib/ports/models.js';
 import type {
@@ -328,5 +331,29 @@ export class FixedClock implements Clock {
 
   today(): string {
     return this.date;
+  }
+}
+
+export class ScriptedStudyPartner implements StudyPartner {
+  readonly hints: string[] = [];
+  readonly quotes: string[] = [];
+  readonly checks: StudyCheck[] = [];
+  readonly checked: string[] = [];
+
+  async hint(request: StudyRequest): Promise<string> {
+    return this.hints.shift() ?? `Hint about ${request.gap}?`;
+  }
+
+  async quote(_request: StudyRequest): Promise<string> {
+    return this.quotes.shift() ?? '';
+  }
+
+  async check(
+    request: StudyRequest & { explanation: string },
+  ): Promise<StudyCheck> {
+    this.checked.push(request.explanation);
+    const next = this.checks.shift();
+    if (!next) throw new Error('ScriptedStudyPartner ran out of checks');
+    return next;
   }
 }
