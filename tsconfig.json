@@ -11,6 +11,9 @@
     },
     {
       "path": "./packages/external-judge"
+    },
+    {
+      "path": "./packages/scheduler"
     }
   ],
   "compilerOptions": {}
