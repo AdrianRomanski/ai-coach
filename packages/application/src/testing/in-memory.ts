@@ -12,6 +12,7 @@ import type {
   NextTurn,
   NextTurnRequest,
   ChallengeRequest,
+  OpeningChallenge,
   SparringPartner,
 } from '../lib/ports/models.js';
 import type {
@@ -269,16 +270,18 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
 export class ScriptedPartner implements SparringPartner {
   readonly challengeRequests: ChallengeRequest[] = [];
   readonly turnRequests: NextTurnRequest[] = [];
-  readonly challenges: (string | Error)[] = [];
+  readonly challenges: (string | OpeningChallenge | Error)[] = [];
   readonly turns: (NextTurn | Error)[] = [];
 
-  async openingChallenge(request: ChallengeRequest): Promise<string> {
+  async openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge> {
     this.challengeRequests.push(structuredClone(request));
     const next = this.challenges.shift();
     if (next === undefined)
       throw new Error('ScriptedPartner ran out of challenges');
     if (next instanceof Error) throw next;
-    return next;
+    return typeof next === 'string'
+      ? { focus: "The note's central idea.", challenge: next }
+      : next;
   }
 
   async nextTurn(request: NextTurnRequest): Promise<NextTurn> {

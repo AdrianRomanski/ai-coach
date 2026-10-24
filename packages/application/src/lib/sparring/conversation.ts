@@ -18,6 +18,7 @@ export type Turn =
 
 export class SparringConversation {
   private readonly round: SparringRound;
+  private focus = '';
 
   constructor(
     private readonly partner: SparringPartner,
@@ -38,13 +39,14 @@ export class SparringConversation {
       attempt < this.rules.maxChallengeAttempts;
       attempt++
     ) {
-      const challenge = await this.partner.openingChallenge({
+      const { focus, challenge } = await this.partner.openingChallenge({
         note: this.note,
         rules: this.rules,
         rejected: [...rejected],
       });
       try {
         this.round.open(challenge);
+        this.focus = focus.trim();
         return { kind: 'challenge', question: this.round.pendingQuestion! };
       } catch (err) {
         if (!(err instanceof ChallengeQuotesNoteError)) throw err;
@@ -66,6 +68,7 @@ export class SparringConversation {
       next = await this.partner.nextTurn({
         note: this.note,
         rules: this.rules,
+        focus: this.focus,
         exchanges: this.round.transcript,
         followUpsLeft,
         rejected: [],
@@ -98,6 +101,7 @@ export class SparringConversation {
     const retry = await this.partner.nextTurn({
       note: this.note,
       rules: this.rules,
+      focus: this.focus,
       exchanges: this.round.transcript,
       followUpsLeft: 1,
       rejected: [question],

@@ -5,13 +5,16 @@ import {
   UnusableReplyError,
   type ChallengeRequest,
   type NextTurn,
+  type OpeningChallenge,
   type NextTurnRequest,
   type SparringPartner,
 } from '@ai-coach/application';
 import { z } from 'zod';
 import {
   challengeMessages,
+  focusMessages,
   nextTurnMessages,
+  titleFocus,
   type ChatMessage,
 } from './prompts.js';
 
@@ -19,6 +22,8 @@ export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
 export const DEFAULT_CONTEXT_WINDOW = 16_384;
 const REPLY_RESERVE = 1_024;
 const CHARS_PER_TOKEN = 3;
+const MAX_SENTENCE = 400;
+const SENTENCE_TOKENS = 120;
 const SERVICE = 'sparring partner';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 
@@ -51,19 +56,34 @@ export function assertLoopback(host: string): URL {
   return url;
 }
 
-const ChallengeReply = z.object({ challenge: z.string().min(1) });
-
 const NextTurnReply = z.object({
   action: z.enum(['probe', 'conclude']),
-  question: z.string(),
+  question: z.string().max(MAX_SENTENCE),
   verdict: z.enum(['pass', 'fail']),
-  gaps: z.array(z.string()),
-  feedback: z.string(),
+  gaps: z.array(z.string().max(MAX_SENTENCE)).max(6),
+  feedback: z.string().max(MAX_SENTENCE),
 });
 
 const OllamaChatResponse = z.object({
   message: z.object({ role: z.string(), content: z.string() }),
 });
+
+const FOCUS_OPENING = /^this note teaches that\b/i;
+
+export function firstSentence(text: string): string {
+  const match = /^.*?[.!?](?=\s|$)/.exec(text);
+  return (match ? match[0] : text).trim();
+}
+
+export function cleanSentence(raw: string): string {
+  return raw
+    .replace(/<\/?[a-z]+-[0-9a-f]+[^>]*>/gi, '')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*(focus|challenge|question)\s*:\s*/i, '')
+    .replace(/^[\s"'“”‘’]+|[\s"'“”‘’]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export class OllamaSparringPartner implements SparringPartner {
   private readonly endpoint: URL;
@@ -75,12 +95,12 @@ export class OllamaSparringPartner implements SparringPartner {
     );
   }
 
-  async openingChallenge(request: ChallengeRequest): Promise<string> {
-    const reply = await this.ask(
-      challengeMessages(request, this.nonce()),
-      ChallengeReply,
+  async openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge> {
+    const focus = await this.askFocus(request);
+    const challenge = await this.askSentence(
+      challengeMessages(request, focus, this.nonce()),
     );
-    return reply.challenge;
+    return { focus, challenge };
   }
 
   async nextTurn(request: NextTurnRequest): Promise<NextTurn> {
@@ -102,6 +122,39 @@ export class OllamaSparringPartner implements SparringPartner {
     return this.options.nonce?.() ?? randomBytes(8).toString('hex');
   }
 
+  private async askFocus(request: ChallengeRequest): Promise<string> {
+    let focus = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      focus = firstSentence(
+        await this.askSentence(focusMessages(request, this.nonce()), 0),
+      );
+      if (FOCUS_OPENING.test(focus)) return focus;
+    }
+    return titleFocus(request.note);
+  }
+
+  private async askSentence(
+    messages: ChatMessage[],
+    temperature?: number,
+  ): Promise<string> {
+    let last = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      last = await this.chat(messages, {
+        maxTokens: SENTENCE_TOKENS,
+        temperature,
+      });
+      const sentence = last
+        .split('\n')
+        .map(cleanSentence)
+        .find((line) => line.split(' ').length >= 3);
+      if (sentence) return sentence;
+    }
+    throw new UnusableReplyError(
+      SERVICE,
+      `The local model gave an unusable sentence: ${last.slice(0, 200)}`,
+    );
+  }
+
   private async ask<T>(
     messages: ChatMessage[],
     schema: z.ZodType<T>,
@@ -112,7 +165,10 @@ export class OllamaSparringPartner implements SparringPartner {
     >;
     let lastError = '';
     for (let attempt = 0; attempt < 2; attempt++) {
-      const raw = await this.chat(messages, format);
+      const raw = await this.chat(messages, {
+        format,
+        maxTokens: REPLY_RESERVE,
+      });
       let data: unknown;
       try {
         data = JSON.parse(raw);
@@ -132,7 +188,12 @@ export class OllamaSparringPartner implements SparringPartner {
 
   private async chat(
     messages: ChatMessage[],
-    format: Record<string, unknown>,
+    reply: {
+      format?: Record<string, unknown>;
+      maxTokens: number;
+      stop?: string[];
+      temperature?: number;
+    },
   ): Promise<string> {
     const contextWindow = this.options.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
     const chars = messages.reduce((sum, m) => sum + m.content.length, 0);
@@ -151,11 +212,13 @@ export class OllamaSparringPartner implements SparringPartner {
         body: JSON.stringify({
           model: this.options.model,
           messages,
-          format,
+          ...(reply.format ? { format: reply.format } : {}),
           stream: false,
           options: {
-            temperature: this.options.temperature ?? 0.4,
+            temperature: reply.temperature ?? this.options.temperature ?? 0.3,
             num_ctx: contextWindow,
+            num_predict: reply.maxTokens,
+            ...(reply.stop ? { stop: reply.stop } : {}),
           },
         }),
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 120_000),

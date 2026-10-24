@@ -13,9 +13,15 @@ export interface ChallengeRequest {
   rejected: string[];
 }
 
+export interface OpeningChallenge {
+  focus: string;
+  challenge: string;
+}
+
 export interface NextTurnRequest {
   note: Note;
   rules: SparringRules;
+  focus: string;
   exchanges: readonly Exchange[];
   followUpsLeft: number;
   rejected: string[];
@@ -26,7 +32,7 @@ export type NextTurn =
   | { action: 'conclude'; verdict: Verdict; gaps: string[]; feedback: string };
 
 export interface SparringPartner {
-  openingChallenge(request: ChallengeRequest): Promise<string>;
+  openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge>;
   nextTurn(request: NextTurnRequest): Promise<NextTurn>;
 }
 

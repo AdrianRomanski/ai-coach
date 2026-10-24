@@ -136,4 +136,26 @@ describe('SparringConversation', () => {
     });
     expect(c.result().exchanges).toHaveLength(1);
   });
+
+  it('keeps the dialogue on the focus the partner named, in every later request', async () => {
+    const partner = new ScriptedPartner();
+    partner.challenges.push({
+      focus: 'Microtasks drain before the next task.',
+      challenge: CHALLENGE,
+    });
+    partner.turns.push(
+      { action: 'probe', question: LEAK },
+      { action: 'probe', question: 'Why first?' },
+      conclude('pass'),
+    );
+    const c = new SparringConversation(partner, NOTE, sparringRules());
+    await c.start();
+    await c.answer('Microtasks.');
+    await c.answer('Because the queue drains.');
+    expect(partner.turnRequests.map((r) => r.focus)).toEqual([
+      'Microtasks drain before the next task.',
+      'Microtasks drain before the next task.',
+      'Microtasks drain before the next task.',
+    ]);
+  });
 });
