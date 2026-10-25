@@ -4,18 +4,21 @@ import {
   SystemClock,
 } from '@ai-coach/adapter-local-state';
 import {
+  OllamaDistillPartner,
   OllamaSparringPartner,
   OllamaStudyPartner,
   OllamaStyleClassifier,
 } from '@ai-coach/adapter-ollama';
 import { McpVault } from '@ai-coach/adapter-vault-mcp';
 import {
+  Distilling,
   Filing,
   Judging,
   Review,
   Sparring,
   Studying,
   type Clock,
+  type DistillPartner,
   type Judge,
   type SparringPartner,
   type StudyPartner,
@@ -30,6 +33,7 @@ export interface Coach {
   sparring(): Sparring;
   judging(): Judging;
   studying(): Studying;
+  distilling(): Distilling;
   close(): Promise<void>;
 }
 
@@ -38,6 +42,7 @@ export interface AdapterOverrides {
   judge?: (config: CoachConfig) => Judge;
   studyPartner?: (config: CoachConfig) => StudyPartner;
   classifier?: (config: CoachConfig) => StyleClassifier;
+  distillPartner?: (config: CoachConfig) => DistillPartner;
 }
 
 export async function composeCoach(
@@ -77,6 +82,15 @@ export async function composeCoach(
           overrides.studyPartner?.(config) ??
           new OllamaStudyPartner(ollamaOptions(config)),
         classifier: classifier(),
+        rules: config.sparring,
+      }),
+    distilling: () =>
+      new Distilling({
+        notes: vault,
+        library: vault,
+        partner:
+          overrides.distillPartner?.(config) ??
+          new OllamaDistillPartner(ollamaOptions(config)),
         rules: config.sparring,
       }),
     judging: () =>

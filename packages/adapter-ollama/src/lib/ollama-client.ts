@@ -133,7 +133,10 @@ export class OllamaClient {
     max: number,
     minWords = 2,
   ): Promise<string[]> {
-    const raw = await this.chat(messages, { maxTokens: 200, temperature: 0 });
+    const raw = await this.chat(messages, {
+      maxTokens: Math.max(200, max * 60),
+      temperature: 0,
+    });
     return raw
       .split('\n')
       .filter((line) => /^\s*(?:[-*•]|\d+[.)])\s+/.test(line))

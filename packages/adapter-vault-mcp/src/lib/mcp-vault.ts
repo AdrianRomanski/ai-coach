@@ -3,12 +3,16 @@ import {
   UnusableReplyError,
   VaultRefusedError,
   type BookChapter,
+  type BookProgress,
+  type ConceptCheck,
   type DueReport,
   type FilingPlan,
   type FilingRequest,
+  type Library,
   type NoteDetails,
   type NoteListing,
   type NotesRepository,
+  type PassageHit,
   type RecordedSession,
   type SessionDraft,
   type SessionLog,
@@ -17,6 +21,7 @@ import {
 import {
   isCoachingStyle,
   tier2Payload,
+  type ConceptDraft,
   type ParaBucket,
   type Tier2Payload,
 } from '@ai-coach/domain';
@@ -102,7 +107,9 @@ function details(note: ReadNoteResult): NoteDetails {
   };
 }
 
-export class McpVault implements NotesRepository, SessionLog, VaultFiling {
+export class McpVault
+  implements NotesRepository, SessionLog, VaultFiling, Library
+{
   private constructor(private readonly client: VaultClient) {}
 
   static async connect(options: VaultClientOptions): Promise<McpVault> {
@@ -220,5 +227,71 @@ export class McpVault implements NotesRepository, SessionLog, VaultFiling {
       case 'init':
         return plan(await this.client.initVault({ execute }).catch(translate));
     }
+  }
+
+  async readingProgress(book?: string): Promise<BookProgress[]> {
+    const books = await this.client
+      .readingProgress(book ? { book } : {})
+      .catch(translate);
+    return books.map((b) => ({
+      index: b.index,
+      folder: b.index.replace(/\/[^/]+$/, ''),
+      title: b.title,
+      author: b.author,
+      stage: b.stage,
+      notes: b.steps.notes,
+      chapters: b.chapters.map(({ path, title, summary, state }) => ({
+        path,
+        title,
+        summary,
+        state,
+      })),
+    }));
+  }
+
+  async findPassages(
+    query: string,
+    options: { within?: string; limit?: number } = {},
+  ): Promise<PassageHit[]> {
+    const hits = await this.client
+      .findPassages({ query, ...options })
+      .catch(translate);
+    return hits.map(({ note, title, page, snippet }) => ({
+      note,
+      title,
+      page,
+      snippet,
+    }));
+  }
+
+  async createConcept(
+    draft: ConceptDraft,
+    execute: boolean,
+  ): Promise<ConceptCheck> {
+    const result = await this.client
+      .createConcept({
+        title: draft.title,
+        summary: draft.summary,
+        core_assertions: draft.assertions,
+        ...(draft.buzzwords.length
+          ? { forbidden_buzzwords: draft.buzzwords }
+          : {}),
+        passages: draft.passages,
+        ...(draft.fromNotes.length ? { from_notes: draft.fromNotes } : {}),
+        execute,
+      })
+      .catch(translate);
+    return {
+      path: result.path,
+      collisions: result.collisions,
+      passages: result.passages.map((p) => ({
+        note: p.note,
+        quote: p.quote,
+        pages: p.pages ?? null,
+        found: p.found,
+        problem: p.problem ?? null,
+      })),
+      executed: result.executed,
+    };
   }
 }

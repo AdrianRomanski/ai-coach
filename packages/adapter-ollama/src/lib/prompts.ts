@@ -7,6 +7,7 @@ import {
   STYLE_GUIDES,
   type CoachingStyle,
   type Exchange,
+  type MaterialItem,
   type Note,
   type SparringRules,
 } from '@ai-coach/domain';
@@ -17,7 +18,10 @@ export interface ChatMessage {
 }
 
 function neutralize(text: string): string {
-  return text.replace(/<(\/?)(note|transcript|focus)-/gi, '‹$1$2-');
+  return text.replace(
+    /<(\/?)(note|transcript|focus|material|summary)-/gi,
+    '‹$1$2-',
+  );
 }
 
 export function plainLinks(text: string): string {
@@ -410,6 +414,130 @@ export function classifyMessages(note: Note, nonce: string): ChatMessage[] {
         'Reply with only the number: 1 or 2.',
         '',
         wrapNote(note, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+const MATERIAL_ITEM = 300;
+const MATERIAL_TOTAL = 24000;
+
+function wrapMaterial(
+  material: readonly MaterialItem[],
+  nonce: string,
+): string {
+  const tag = `material-${nonce}`;
+  const lines: string[] = [];
+  let used = 0;
+  for (const item of material) {
+    const where =
+      item.page === null ? item.chapter : `${item.chapter}, p. ${item.page}`;
+    const line = `[${item.id}] (${item.kind}; ${neutralize(where)}) ${neutralize(plainQuotes(plainLinks(item.text))).slice(0, MATERIAL_ITEM)}`;
+    if (used + line.length > MATERIAL_TOTAL) break;
+    used += line.length;
+    lines.push(line);
+  }
+  return `<${tag}>\n${lines.join('\n')}\n</${tag}>`;
+}
+
+function wrapSummary(summary: string, nonce: string): string {
+  return `<summary-${nonce}>\n${neutralize(summary)}\n</summary-${nonce}>`;
+}
+
+const MATERIAL_KINDS =
+  'Each line is one item the learner kept from a book: a highlight or bold they marked in the text, a summary they wrote, or an excerpt of their own reading note. It starts with the item number in brackets.';
+
+export function ideasMessages(
+  material: readonly MaterialItem[],
+  max: number,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: graderPrompt(nonce) },
+    {
+      role: 'user',
+      content: [
+        `${MATERIAL_KINDS} The items arrive inside <material-${nonce}> tags.`,
+        `Group the items into at most ${max} distinct ideas worth keeping, each one idea a learner could explain on its own.`,
+        'Put every item about the same idea into one group: a reading note or summary goes with the marks it talks about. Never make two ideas about the same thing; fewer, broader ideas are better than one per item.',
+        'Name each idea in at most six words, as a noun phrase, and list the numbers of the items that belong to it. An item may belong to no idea.',
+        'Reply in JSON as {"ideas": [{"title": "...", "items": [1, 2]}]}.',
+        '',
+        wrapMaterial(material, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function distillQuestionsMessages(
+  request: {
+    title: string;
+    summary: string;
+    material: readonly MaterialItem[];
+  },
+  max: number,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: graderPrompt(nonce) },
+    {
+      role: 'user',
+      content: [
+        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `${MATERIAL_KINDS} The items arrive inside <material-${nonce}> tags, and the learner's summary in their own words inside <summary-${nonce}> tags.`,
+        `Find what the marked items say about this idea that the summary leaves out or gets wrong, and ask at most ${max} short questions that make the learner put it in their own words.`,
+        'A question must not contain its answer. Ask nothing the summary already covers. If nothing important is missing, reply with an empty list.',
+        'Reply in JSON as {"questions": ["..."]}.',
+        '',
+        wrapMaterial(request.material, nonce),
+        '',
+        wrapSummary(request.summary, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function assertionsMessages(
+  request: { title: string; summary: string; answers: readonly Exchange[] },
+  max: number,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: graderPrompt(nonce) },
+    {
+      role: 'user',
+      content: [
+        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `Their summary arrives inside <summary-${nonce}> tags and their answers to follow-up questions inside <transcript-${nonce}> tags.`,
+        `Rewrite what the learner wrote as at most ${max} core assertions: short, concrete, checkable claims that together define the idea.`,
+        'Use only what the learner wrote; add no fact, example or claim of your own. Each assertion is one plain sentence of at most 25 words, a statement and never a question.',
+        'Reply with only the list, one per line, each line starting with a dash and a space followed by the assertion itself.',
+        '',
+        wrapSummary(request.summary, nonce),
+        ...(request.answers.length
+          ? ['', wrapTranscript(request.answers, nonce)]
+          : []),
+      ].join('\n'),
+    },
+  ];
+}
+
+export function buzzwordsMessages(
+  request: { title: string; material: readonly MaterialItem[] },
+  max: number,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: graderPrompt(nonce) },
+    {
+      role: 'user',
+      content: [
+        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `${MATERIAL_KINDS} The items arrive inside <material-${nonce}> tags.`,
+        `List at most ${max} terms of jargon from the items that a learner could repeat without understanding the idea, the author's coined labels first.`,
+        'Each term is one to three words, copied as it appears; never an ordinary word such as a verb or a common noun. Reply with only the list, one per line, each line starting with a dash and a space followed by the term itself.',
+        '',
+        wrapMaterial(request.material, nonce),
       ].join('\n'),
     },
   ];

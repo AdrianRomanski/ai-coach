@@ -1,5 +1,8 @@
 import {
   PARA_BUCKETS,
+  type ConceptDraft,
+  type Exchange,
+  type MaterialItem,
   type CoachingStyle,
   type Note,
   type SparringRules,
@@ -26,6 +29,14 @@ import type {
   StyleClassifier,
   SparringPartner,
 } from '../lib/ports/models.js';
+import type {
+  BookProgress,
+  ConceptCheck,
+  DistillPartner,
+  IdeaProposal,
+  Library,
+  PassageHit,
+} from '../lib/ports/library.js';
 import type {
   Clock,
   PendingJudgements,
@@ -431,3 +442,115 @@ export class FixedClassifier implements StyleClassifier {
     return this.style;
   }
 }
+
+export class InMemoryLibrary implements Library {
+  readonly created: ConceptDraft[] = [];
+  readonly searches: { query: string; within?: string }[] = [];
+
+  constructor(
+    private readonly vault: InMemoryVault,
+    readonly books: BookProgress[] = [],
+    readonly hits: PassageHit[] = [],
+  ) {}
+
+  async readingProgress(book?: string): Promise<BookProgress[]> {
+    return this.books.filter((b) => !book || b.folder === book);
+  }
+
+  async findPassages(
+    query: string,
+    options: { within?: string; limit?: number } = {},
+  ): Promise<PassageHit[]> {
+    this.searches.push({ query, within: options.within });
+    return this.hits
+      .filter((h) => !options.within || h.note.startsWith(options.within))
+      .slice(0, options.limit ?? 10);
+  }
+
+  async createConcept(
+    draft: ConceptDraft,
+    execute: boolean,
+  ): Promise<ConceptCheck> {
+    const fold = (text: string) =>
+      text
+        .replace(/==|\*\*|__/g, '')
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+    const path = `3.Resources/Concepts/${draft.title}.md`;
+    const passages = draft.passages.map((p) => {
+      const body = this.vault.notes.get(p.note)?.body;
+      const found = !!body && fold(body).includes(fold(p.quote));
+      return {
+        note: p.note,
+        quote: p.quote,
+        pages: p.pages ?? null,
+        found,
+        problem: found ? null : 'not found in the note',
+      };
+    });
+    if (passages.some((p) => !p.found)) {
+      throw new VaultRefusedError(
+        'create_concept refused: a quote was not found',
+      );
+    }
+    const collisions = this.vault.notes.has(path) ? [path] : [];
+    const executed = execute && !collisions.length;
+    if (executed) {
+      this.created.push(draft);
+      this.vault.put(path, draft.summary, {
+        rawRole: null,
+        concept: {
+          assertions: draft.assertions,
+          buzzwords: draft.buzzwords,
+          passages: draft.passages.map((p) => ({
+            note: p.note,
+            quote: p.quote,
+            pages: p.pages ?? null,
+            found: true,
+          })),
+          problems: [],
+        },
+      });
+    }
+    return { path, collisions, passages, executed };
+  }
+}
+
+export class ScriptedDistillPartner implements DistillPartner {
+  ideas: IdeaProposal[] | Error = [];
+  questions: string[] | Error = [];
+  assertions: string[] | Error = [];
+  buzzwords: string[] | Error = [];
+  readonly seen: { summary?: string; answers?: readonly Exchange[] }[] = [];
+
+  private reply<T>(value: T | Error): T {
+    if (value instanceof Error) throw value;
+    return value;
+  }
+
+  async proposeIdeas(_request: {
+    material: readonly MaterialItem[];
+  }): Promise<IdeaProposal[]> {
+    return this.reply(this.ideas);
+  }
+
+  async gapQuestions(request: { summary: string }): Promise<string[]> {
+    this.seen.push({ summary: request.summary });
+    return this.reply(this.questions);
+  }
+
+  async draftAssertions(request: {
+    summary: string;
+    answers: readonly Exchange[];
+  }): Promise<string[]> {
+    this.seen.push({ summary: request.summary, answers: request.answers });
+    return this.reply(this.assertions);
+  }
+
+  async suggestBuzzwords(_request: { title: string }): Promise<string[]> {
+    return this.reply(this.buzzwords);
+  }
+}
+
+export const unusable = (): UnusableReplyError =>
+  new UnusableReplyError('model', 'scripted unusable reply');

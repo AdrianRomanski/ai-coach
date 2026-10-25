@@ -5,10 +5,13 @@ import {
 } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { z } from 'zod';
 import {
+  CreateConceptResult,
   DueForReviewResult,
+  FindPassagesResult,
   FilingResult,
   ListNotesResult,
   ReadNoteResult,
+  ReadingProgressResult,
   RecordSessionResult,
   SearchResult,
   Tier2Payload,
@@ -192,6 +195,33 @@ export class VaultClient {
     execute?: boolean;
   }): Promise<FilingResult> {
     return this.call('archive_project', args, FilingResult);
+  }
+
+  readingProgress(
+    args: { book?: string; chapters?: boolean } = {},
+  ): Promise<ReadingProgressResult> {
+    return this.call('reading_progress', args, ReadingProgressResult);
+  }
+
+  findPassages(args: {
+    query: string;
+    within?: string;
+    limit?: number;
+  }): Promise<FindPassagesResult> {
+    return this.call('find_passages', args, FindPassagesResult);
+  }
+
+  createConcept(args: {
+    title: string;
+    summary: string;
+    core_assertions: string[];
+    forbidden_buzzwords?: string[];
+    passages: { note: string; quote: string; pages?: string }[];
+    from_notes?: string[];
+    folder?: string;
+    execute?: boolean;
+  }): Promise<CreateConceptResult> {
+    return this.call('create_concept', args, CreateConceptResult);
   }
 
   private async call<T>(

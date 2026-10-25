@@ -56,3 +56,5 @@ vitest.config.*.timestamp*
 .vitest
 
 coach.config.json
+
+docs/kb-template-handoff/

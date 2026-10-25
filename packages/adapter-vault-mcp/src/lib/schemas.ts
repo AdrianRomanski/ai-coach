@@ -223,3 +223,61 @@ export const FilingResult = z.object({
   executed: z.boolean(),
 });
 export type FilingResult = z.infer<typeof FilingResult>;
+
+export const ReadingProgressResult = z.array(
+  z.object({
+    index: z.string(),
+    title: z.string(),
+    author: z.string().nullable(),
+    stage: z.string(),
+    steps: z.object({
+      readOn: z.string().nullable(),
+      notes: z.array(z.string()),
+      chaptersComplete: z.number(),
+      chaptersInProgress: z.number(),
+      chapters: z.number(),
+      concepts: z.array(z.string()),
+    }),
+    chapters: z
+      .array(
+        z.object({
+          path: z.string(),
+          title: z.string(),
+          summary: z.boolean(),
+          state: z.enum(['untouched', 'in_progress', 'complete']),
+        }),
+      )
+      .optional()
+      .default([]),
+  }),
+);
+export type ReadingProgressResult = z.infer<typeof ReadingProgressResult>;
+
+export const FindPassagesResult = z.array(
+  z.object({
+    note: z.string(),
+    source: z.string(),
+    title: z.string(),
+    page: z.number().nullable(),
+    score: z.number(),
+    snippet: z.string(),
+  }),
+);
+export type FindPassagesResult = z.infer<typeof FindPassagesResult>;
+
+export const CreateConceptResult = z.object({
+  path: z.string().nullable(),
+  errors: z.array(z.string()),
+  collisions: z.array(z.string()),
+  passages: z.array(
+    z.object({
+      note: z.string(),
+      quote: z.string(),
+      pages: z.string().optional(),
+      found: z.boolean(),
+      problem: z.string().optional(),
+    }),
+  ),
+  executed: z.boolean(),
+});
+export type CreateConceptResult = z.infer<typeof CreateConceptResult>;
