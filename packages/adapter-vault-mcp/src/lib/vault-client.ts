@@ -187,6 +187,8 @@ export class VaultClient {
 
   archiveProject(args: {
     project: string;
+    keep?: { note: string; to?: string }[];
+    keep_suggested?: boolean;
     execute?: boolean;
   }): Promise<FilingResult> {
     return this.call('archive_project', args, FilingResult);

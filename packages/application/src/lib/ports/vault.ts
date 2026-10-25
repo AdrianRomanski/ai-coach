@@ -137,17 +137,28 @@ export type FilingAction =
   | { op: 'write'; to: string }
   | { op: 'remove_empty'; from: string };
 
+export interface KeepSuggestion {
+  path: string;
+  to: string;
+  reasons: string[];
+}
+
 export interface FilingPlan {
   actions: FilingAction[];
   collisions: string[];
   warnings: string[];
+  suggestions?: KeepSuggestion[];
   executed: boolean;
 }
 
 export type FilingRequest =
   | { kind: 'file'; path: string; to: string }
   | { kind: 'capture'; title: string; body: string }
-  | { kind: 'archive'; project: string }
+  | {
+      kind: 'archive';
+      project: string;
+      keep?: { note: string; to?: string }[];
+    }
   | { kind: 'init' };
 
 export interface VaultFiling {

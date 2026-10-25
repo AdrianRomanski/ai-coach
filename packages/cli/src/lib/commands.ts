@@ -5,6 +5,7 @@ import {
   NotSparrableError,
   type FilingPlan,
   type FilingRequest,
+  type KeepSuggestion,
   type JudgedSession,
   type NoteDetails,
   type SparredNote,
@@ -532,10 +533,48 @@ export async function archive(
   const [project] = args;
   if (!project || args.length !== 1)
     throw new UsageError('Usage: coach archive <project folder>');
+  const suggestions =
+    (await coach.filing.preview({ kind: 'archive', project })).suggestions ??
+    [];
+  const keep = suggestions.length ? await chooseKeepers(term, suggestions) : [];
   await previewThenApply(coach, term, `Archive project ${project}`, {
     kind: 'archive',
     project,
+    keep,
   });
+}
+
+async function chooseKeepers(
+  term: Terminal,
+  suggestions: KeepSuggestion[],
+): Promise<{ note: string; to: string }[]> {
+  term.print(
+    paint(
+      'bold',
+      'Notes worth keeping in Resources, where they stay sparrable:',
+    ),
+  );
+  suggestions.forEach((s, i) => {
+    term.print(`${String(i + 1).padStart(3)}. ${s.path} → ${s.to}`);
+    term.print(paint('dim', `     ${s.reasons.join('; ')}`));
+  });
+  const raw = await term.ask(
+    'Keep which? Numbers separated by spaces, Enter for all, "none" for none: ',
+  );
+  if (raw === null) return [];
+  const answer = raw.trim().toLowerCase();
+  if (answer === 'none') return [];
+  const picks = answer
+    ? answer.split(/[\s,]+/).map(Number)
+    : suggestions.map((_, i) => i + 1);
+  const bad = picks.filter(
+    (n) => !Number.isInteger(n) || n < 1 || n > suggestions.length,
+  );
+  if (bad.length) throw new UsageError(`Not on the list: ${bad.join(', ')}`);
+  return [...new Set(picks)].map((n) => ({
+    note: suggestions[n - 1]!.path,
+    to: suggestions[n - 1]!.to,
+  }));
 }
 
 export async function capture(

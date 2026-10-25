@@ -41,6 +41,7 @@ function plan(result: FilingResult): FilingPlan {
     actions: result.actions,
     collisions: result.collisions,
     warnings: result.warnings,
+    suggestions: result.suggestions ?? [],
     executed: result.executed,
   };
 }
@@ -209,7 +210,11 @@ export class McpVault implements NotesRepository, SessionLog, VaultFiling {
       case 'archive':
         return plan(
           await this.client
-            .archiveProject({ project: request.project, execute })
+            .archiveProject({
+              project: request.project,
+              ...(request.keep?.length ? { keep: request.keep } : {}),
+              execute,
+            })
             .catch(translate),
         );
       case 'init':

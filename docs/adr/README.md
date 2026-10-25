@@ -25,3 +25,4 @@ Every important or major change to ai-coach ships with an ADR in this folder; AD
 | [0019](0019-coaching-styles.md)                                                   | Coach in one of four styles, chosen per note                                                | accepted               |
 | [0020](0020-asking-for-help-in-study-never-costs-an-attempt.md)                   | Asking for help in study never costs an attempt, and a bad model reply never ends a session | accepted               |
 | [0021](0021-the-judge-may-see-core-assertions.md)                                 | Only the Tier 2 payload leaves the machine, and it may carry core assertions                | accepted               |
+| [0022](0022-keep-knowledge-notes-when-archiving-a-project.md)                     | Ask which knowledge notes to keep before archiving a project                                | accepted               |

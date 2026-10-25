@@ -211,6 +211,15 @@ export const FilingResult = z.object({
   collisions: z.array(z.string()),
   errors: z.array(z.string()),
   warnings: z.array(z.string()),
+  suggestions: z
+    .array(
+      z.object({
+        path: z.string(),
+        to: z.string(),
+        reasons: z.array(z.string()),
+      }),
+    )
+    .optional(),
   executed: z.boolean(),
 });
 export type FilingResult = z.infer<typeof FilingResult>;
