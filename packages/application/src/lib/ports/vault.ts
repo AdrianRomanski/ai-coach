@@ -34,13 +34,29 @@ export interface BookChapter {
   pages: string;
 }
 
+export interface ConceptPassage {
+  quote: string;
+  note: string;
+  pages: string | null;
+  found: boolean;
+}
+
+export interface ConceptDetails {
+  assertions: string[];
+  buzzwords: string[];
+  passages: ConceptPassage[];
+  problems: string[];
+}
+
 export type RawRole = 'index' | 'chapter' | null;
 
 export interface NoteDetails extends NoteSummary {
   body: string;
   sessions: SessionEntry[];
+  raw: boolean;
   rawRole: RawRole;
   chapter: BookChapter | null;
+  concept: ConceptDetails | null;
   style: CoachingStyle | null;
 }
 
@@ -60,11 +76,12 @@ export interface DueReport {
   due: {
     path: string;
     title: string;
+    concept?: boolean;
     coachId: string;
     nextReview: string;
     mastery: Mastery;
   }[];
-  unsparred: { path: string; title: string }[];
+  unsparred: { path: string; title: string; concept?: boolean }[];
   orphaned: { coachId: string; lastSession: string | null }[];
   invalidSessions: InvalidSession[];
 }
@@ -107,7 +124,10 @@ export interface RecordedSession {
 
 export interface SessionLog {
   record(draft: SessionDraft, execute: boolean): Promise<RecordedSession>;
-  tier2Payload(sessionId: string): Promise<Tier2Payload>;
+  tier2Payload(
+    sessionId: string,
+    options?: { includeAssertions?: boolean },
+  ): Promise<Tier2Payload>;
 }
 
 export type FilingAction =

@@ -107,6 +107,7 @@ describe('OllamaSparringPartner', () => {
         note: NOTE,
         rules,
         style: 'cornell' as const,
+        assertions: [],
         rejected: [],
       }),
     ).toEqual({
@@ -272,6 +273,7 @@ describe('OllamaSparringPartner', () => {
           note: NOTE,
           rules,
           style: 'cornell' as const,
+          assertions: [],
           rejected: [],
         })
       ).scope,
@@ -283,6 +285,7 @@ describe('OllamaSparringPartner', () => {
           note: NOTE,
           rules,
           style: 'cornell' as const,
+          assertions: [],
           rejected: [],
         })
       ).scope,
@@ -296,6 +299,7 @@ describe('OllamaSparringPartner', () => {
       note: NOTE,
       rules,
       style: 'cornell',
+      assertions: [],
       rejected: [],
     });
     expect(cornell.jargon).toEqual([]);
@@ -317,6 +321,7 @@ describe('OllamaSparringPartner', () => {
       note: NOTE,
       rules,
       style: 'feynman',
+      assertions: [],
       rejected: [],
     });
     expect(feynman.jargon).toEqual([
@@ -325,6 +330,31 @@ describe('OllamaSparringPartner', () => {
       'event loop',
     ]);
     expect(text(2)).toContain(STYLE_GUIDES.feynman.challenge);
+  });
+
+  it('opens a concept from its assertions, with no focus, scope or jargon guessing', async () => {
+    const partner = new OllamaSparringPartner({
+      model: 'g',
+      host,
+      nonce: () => 'n6',
+    });
+    replies.push('Why does a resolved promise run before a timer?');
+    const opening = await partner.openingChallenge({
+      note: NOTE,
+      rules,
+      style: 'feynman',
+      assertions: ['Microtasks drain before the next task.', 'Timers wait.'],
+      rejected: [],
+    });
+    expect(opening).toEqual({
+      focus:
+        'This note teaches that Microtasks drain before the next task; Timers wait.',
+      scope: ['Microtasks drain before the next task.', 'Timers wait.'],
+      jargon: [],
+      challenge: 'Why does a resolved promise run before a timer?',
+    });
+    expect(sent).toHaveLength(1);
+    expect(text(0)).toContain('<focus-n6>');
   });
 
   it('fences the note as untrusted data that cannot close its own fence', async () => {
@@ -341,6 +371,7 @@ describe('OllamaSparringPartner', () => {
       },
       rules,
       style: 'cornell' as const,
+      assertions: [],
       rejected: [],
     });
     const [system, user] = sent[0]!.messages;
@@ -357,6 +388,7 @@ describe('OllamaSparringPartner', () => {
       note: NOTE,
       rules,
       style: 'cornell' as const,
+      assertions: [],
       rejected: ['Copied question?'],
     });
     expect(sent[2]!.messages.slice(-2)).toEqual([
@@ -382,6 +414,7 @@ describe('OllamaSparringPartner', () => {
       note: NOTE,
       rules,
       style: 'cornell' as const,
+      assertions: [],
       rejected: [],
     });
     expect(opening.focus).toBe(
@@ -397,6 +430,7 @@ describe('OllamaSparringPartner', () => {
         note: NOTE,
         rules,
         style: 'cornell' as const,
+        assertions: [],
         rejected: [],
       }),
     ).rejects.toBeInstanceOf(UnusableReplyError);
@@ -427,6 +461,7 @@ describe('OllamaSparringPartner', () => {
         note: chapter,
         rules,
         style: 'cornell' as const,
+        assertions: [],
         rejected: [],
       }),
     ).rejects.toBeInstanceOf(ContextTooSmallError);
@@ -437,6 +472,7 @@ describe('OllamaSparringPartner', () => {
       note: chapter,
       rules,
       style: 'cornell' as const,
+      assertions: [],
       rejected: [],
     });
     expect(sent[0]!.options).toMatchObject({ num_ctx: 16_384 });
@@ -458,6 +494,7 @@ describe('OllamaSparringPartner', () => {
         note: NOTE,
         rules,
         style: 'cornell' as const,
+        assertions: [],
         rejected: [],
       }),
     ).rejects.toBeInstanceOf(UnavailableError);
@@ -484,7 +521,13 @@ describe('OllamaSparringPartner', () => {
 describe('prompts and sentence cleaning', () => {
   it('anchor the focus on the title and keep notes out of challenges and turns', () => {
     const focus = focusMessages(
-      { note: NOTE, rules, style: 'cornell' as const, rejected: [] },
+      {
+        note: NOTE,
+        rules,
+        style: 'cornell' as const,
+        assertions: [],
+        rejected: [],
+      },
       'n4',
     )[1]!.content;
     expect(focus).toContain(
@@ -494,7 +537,13 @@ describe('prompts and sentence cleaning', () => {
     expect(focus).toContain('NOTE-BODY-MARKER');
 
     const challenge = challengeMessages(
-      { note: NOTE, rules, style: 'cornell' as const, rejected: [] },
+      {
+        note: NOTE,
+        rules,
+        style: 'cornell' as const,
+        assertions: [],
+        rejected: [],
+      },
       FOCUS,
       'n4',
     )[1]!.content;

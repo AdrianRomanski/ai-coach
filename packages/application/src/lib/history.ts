@@ -1,5 +1,7 @@
 import type {
   CoachingStyle,
+  Note,
+  Passage,
   SparringRules,
   Tier2Outcome,
 } from '@ai-coach/domain';
@@ -33,4 +35,44 @@ export async function resolveStyle(
   if (note.style) return note.style;
   if (rules.style !== 'auto') return rules.style;
   return classifier.classify({ title: note.title, body: note.body }, rules);
+}
+
+export interface Reference {
+  note: Note;
+  text: string;
+  assertions: string[];
+  buzzwords: string[];
+  passages: Passage[];
+}
+
+function firstPage(pages: string | null): number | null {
+  const match = pages ? /\d+/.exec(pages) : null;
+  return match ? Number(match[0]) : null;
+}
+
+export function referenceOf(note: NoteDetails): Reference {
+  if (!note.concept) {
+    return {
+      note: { title: note.title, body: note.body },
+      text: note.body,
+      assertions: [],
+      buzzwords: [],
+      passages: [],
+    };
+  }
+  const passages = note.concept.passages
+    .filter((p) => p.found)
+    .map((p) => ({ text: p.quote, page: firstPage(p.pages) }));
+  const text = [
+    ...note.concept.assertions,
+    ...passages.map((p) => p.text),
+    note.body,
+  ].join('\n\n');
+  return {
+    note: { title: note.title, body: text },
+    text,
+    assertions: note.concept.assertions,
+    buzzwords: note.concept.buzzwords,
+    passages,
+  };
 }

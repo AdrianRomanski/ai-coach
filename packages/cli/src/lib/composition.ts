@@ -92,6 +92,7 @@ export async function composeCoach(
             thinkingLevel: config.judge.thinkingLevel,
           }),
         ladder: config.ladder,
+        includeAssertions: config.judge.includeAssertions,
       }),
     close: () => vault.close(),
   };

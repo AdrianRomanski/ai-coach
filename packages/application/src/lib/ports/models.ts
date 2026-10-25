@@ -12,6 +12,7 @@ export interface ChallengeRequest {
   note: Note;
   rules: SparringRules;
   style: CoachingStyle;
+  assertions: string[];
   rejected: string[];
 }
 
@@ -55,6 +56,7 @@ export interface StudyRequest {
   note: Note;
   rules: SparringRules;
   style: CoachingStyle;
+  assertions: string[];
   gap: string;
 }
 
@@ -63,19 +65,12 @@ export interface StudyCheck {
   nudge: string;
 }
 
-export interface ChapterChoice {
-  rules: SparringRules;
-  gap: string;
-  chapters: string[];
-}
-
 export interface StyleClassifier {
   classify(note: Note, rules: SparringRules): Promise<CoachingStyle>;
 }
 
 export interface StudyPartner {
   clue(request: StudyRequest): Promise<string>;
-  chooseChapter(request: ChapterChoice): Promise<number | null>;
   hint(request: StudyRequest): Promise<string>;
   quote(request: StudyRequest): Promise<string>;
   check(request: StudyRequest & { explanation: string }): Promise<StudyCheck>;

@@ -88,7 +88,11 @@ describe('SparringRound', () => {
     const r = round();
     r.open(CHALLENGE);
     r.submit('Microtasks first.');
-    expect(r.conclude('fail', [], '').verdict).toBe('pass');
+    expect(r.conclude('fail', [], 'You lacked detail.')).toEqual({
+      verdict: 'pass',
+      gaps: [],
+      feedback: 'Every gap the coach raised is covered by your answers.',
+    });
   });
 
   it('can withdraw the last accepted answer when the partner fails', () => {

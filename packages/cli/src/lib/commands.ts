@@ -355,32 +355,12 @@ function showOutcome(term: Terminal, outcome: StudyOutcome): void {
 
 function showPlace(term: Terminal, place: GapPlace): void {
   if (place.kind === 'here') return;
-  if (place.kind === 'outside') {
-    term.print(
-      paint(
-        'dim',
-        "  This chapter doesn't explain it and no other chapter matched: answer from what you know, or /skip.",
-      ),
-    );
-    return;
-  }
-  if (!place.passage) {
-    term.print(
-      paint(
-        'dim',
-        `  This goes beyond this chapter: ${place.chapter} teaches it. Reread that chapter.`,
-      ),
-    );
-    return;
-  }
-  const where = place.passage.page ? `, page ${place.passage.page}` : '';
   term.print(
     paint(
       'dim',
-      `  This goes beyond this chapter. ${place.chapter} covers it${where}, in the author's words:`,
+      "  This note doesn't explain that point: answer from what you know, or /skip.",
     ),
   );
-  term.print(paint('italic', `  "${place.passage.text}"`));
 }
 
 async function runStudy(

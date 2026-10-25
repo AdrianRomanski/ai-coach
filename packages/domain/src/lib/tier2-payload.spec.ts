@@ -29,6 +29,41 @@ describe('tier2Payload', () => {
   });
 });
 
+describe('tier2Payload with core assertions', () => {
+  const item = {
+    challenge: 'Why?',
+    answer: 'Because.',
+    coreAssertions: ['A claim.'],
+  };
+
+  it('carries assertions only when they are allowed', () => {
+    expect(() => tier2Payload({ items: [item] })).toThrow(
+      InvalidTier2PayloadError,
+    );
+    const payload = tier2Payload(
+      { items: [item, { challenge: 'C?', answer: 'A.' }] },
+      { allowAssertions: true },
+    );
+    expect(payload.items).toEqual([item, { challenge: 'C?', answer: 'A.' }]);
+    expect(Object.isFrozen(payload.items[0]!.coreAssertions)).toBe(true);
+  });
+
+  it('still refuses anything else, and assertions that are not strings', () => {
+    expect(() =>
+      tier2Payload(
+        { items: [{ ...item, body: 'private' }] },
+        { allowAssertions: true },
+      ),
+    ).toThrow(InvalidTier2PayloadError);
+    expect(() =>
+      tier2Payload(
+        { items: [{ ...item, coreAssertions: [1] }] },
+        { allowAssertions: true },
+      ),
+    ).toThrow(/not a list of strings/);
+  });
+});
+
 describe('sparringRules', () => {
   it('fills defaults and rejects nonsense', () => {
     expect(sparringRules({ maxFollowUps: 1 })).toMatchObject({

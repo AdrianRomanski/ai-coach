@@ -81,7 +81,7 @@ export class GeminiJudge implements Judge {
   }
 
   async judge(payload: Tier2Payload): Promise<JudgeReport> {
-    const checked = tier2Payload(payload);
+    const checked = tier2Payload(payload, { allowAssertions: true });
     try {
       return await this.judgeWith(this.model, checked);
     } catch (err) {

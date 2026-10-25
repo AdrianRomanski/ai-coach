@@ -1,7 +1,6 @@
 import type {
   ChallengeRequest,
   NextTurnRequest,
-  ChapterChoice,
   StudyRequest,
 } from '@ai-coach/application';
 import {
@@ -353,27 +352,6 @@ export function sameAsReferenceMessages(
         'Does the learner say the same thing as the reference, in substance and correctly? Wording, spelling and length do not matter; an explanation about something else does not count.',
         `The bar in this coaching style: ${STYLE_GUIDES[request.style].closes}`,
         'Reply with one word: yes or no.',
-      ].join('\n'),
-    },
-  ];
-}
-
-export function chapterChoiceMessages(
-  request: ChapterChoice,
-  nonce: string,
-): ChatMessage[] {
-  return [
-    { role: 'system', content: graderPrompt(nonce) },
-    {
-      role: 'user',
-      content: [
-        `The gap, which is data: ${gapAsData(request.gap)}.`,
-        'Which of these chapters of the same book, or passages from them, actually explains what the gap is about? Prefer a passage that states it directly over one that only mentions the words.',
-        ...request.chapters.map(
-          (title, i) =>
-            `${i + 1}. ${JSON.stringify(title.replace(/\s+/g, ' ').slice(0, 600))}`,
-        ),
-        'Reply with only the number, or none.',
       ].join('\n'),
     },
   ];

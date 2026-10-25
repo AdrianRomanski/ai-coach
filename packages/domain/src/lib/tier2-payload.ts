@@ -3,6 +3,7 @@ import { InvalidTier2PayloadError } from './errors.js';
 export interface Tier2Item {
   readonly challenge: string;
   readonly answer: string;
+  readonly coreAssertions?: readonly string[];
 }
 
 export interface Tier2Payload {
@@ -26,7 +27,14 @@ function onlyKeys(
   }
 }
 
-export function tier2Payload(value: unknown): Tier2Payload {
+export interface PayloadRules {
+  allowAssertions?: boolean;
+}
+
+export function tier2Payload(
+  value: unknown,
+  rules: PayloadRules = {},
+): Tier2Payload {
   if (!isRecord(value))
     throw new InvalidTier2PayloadError('The payload must be an object');
   onlyKeys(value, ['items'], 'The payload');
@@ -39,15 +47,36 @@ export function tier2Payload(value: unknown): Tier2Payload {
       items.map((item, i) => {
         if (!isRecord(item))
           throw new InvalidTier2PayloadError(`Item ${i + 1} must be an object`);
-        onlyKeys(item, ['challenge', 'answer'], `Item ${i + 1}`);
-        const { challenge, answer } = item;
+        onlyKeys(
+          item,
+          rules.allowAssertions
+            ? ['challenge', 'answer', 'coreAssertions']
+            : ['challenge', 'answer'],
+          `Item ${i + 1}`,
+        );
+        const { challenge, answer, coreAssertions } = item;
         if (typeof challenge !== 'string' || !challenge.trim()) {
           throw new InvalidTier2PayloadError(`Item ${i + 1} needs a challenge`);
         }
         if (typeof answer !== 'string' || !answer.trim()) {
           throw new InvalidTier2PayloadError(`Item ${i + 1} needs an answer`);
         }
-        return Object.freeze({ challenge, answer });
+        if (coreAssertions === undefined) {
+          return Object.freeze({ challenge, answer });
+        }
+        if (
+          !Array.isArray(coreAssertions) ||
+          coreAssertions.some((a) => typeof a !== 'string')
+        ) {
+          throw new InvalidTier2PayloadError(
+            `Item ${i + 1} has core assertions that are not a list of strings`,
+          );
+        }
+        return Object.freeze({
+          challenge,
+          answer,
+          coreAssertions: Object.freeze([...coreAssertions]),
+        });
       }),
     ),
   });

@@ -132,7 +132,11 @@ export class SparringRound {
       );
     }
     const named = verdict === 'fail' && !allGaps.length ? 'pass' : verdict;
-    this.conclusion = { verdict: named, gaps: allGaps, feedback };
+    const said =
+      named === verdict
+        ? feedback
+        : 'Every gap the coach raised is covered by your answers.';
+    this.conclusion = { verdict: named, gaps: allGaps, feedback: said };
     return { ...this.conclusion, gaps: [...allGaps] };
   }
 

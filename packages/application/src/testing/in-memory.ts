@@ -20,7 +20,6 @@ import type {
   NextTurnRequest,
   ChallengeRequest,
   OpeningChallenge,
-  ChapterChoice,
   StudyCheck,
   StudyPartner,
   StudyRequest,
@@ -46,6 +45,7 @@ import type {
   SessionLog,
   VaultFiling,
   BookChapter,
+  ConceptDetails,
   RawRole,
 } from '../lib/ports/vault.js';
 
@@ -62,8 +62,10 @@ interface StoredNote {
   title: string;
   body: string;
   coachId: string | null;
+  raw: boolean;
   rawRole: RawRole;
   chapter: BookChapter | null;
+  concept: ConceptDetails | null;
   style: CoachingStyle | null;
 }
 
@@ -93,7 +95,13 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
   put(
     path: string,
     body: string,
-    raw: { rawRole: RawRole; chapter?: BookChapter; style?: CoachingStyle } = {
+    raw: {
+      rawRole: RawRole;
+      chapter?: BookChapter;
+      style?: CoachingStyle;
+      concept?: ConceptDetails;
+      raw?: boolean;
+    } = {
       rawRole: null,
     },
   ): void {
@@ -104,7 +112,9 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
       body,
       coachId: null,
       rawRole: raw.rawRole,
+      raw: raw.raw ?? path.includes('/0.Raw/'),
       chapter: raw.chapter ?? null,
+      concept: raw.concept ?? null,
       style: raw.style ?? null,
     });
   }
@@ -176,17 +186,17 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
       ...this.summary(note),
       body: note.body,
       sessions: this.entries(note.coachId),
+      raw: note.raw,
       rawRole: note.rawRole,
       chapter: note.chapter,
+      concept: note.concept,
       style: note.style,
     };
   }
 
   async dueForReview(today: string): Promise<DueReport> {
     const resources = [...this.notes.values()]
-      .filter(
-        (n) => this.bucket(n.path) === 'resources' && n.rawRole !== 'index',
-      )
+      .filter((n) => this.bucket(n.path) === 'resources' && !n.raw)
       .map((n) => this.summary(n));
     return {
       today,
@@ -254,16 +264,32 @@ export class InMemoryVault implements NotesRepository, SessionLog, VaultFiling {
     };
   }
 
-  async tier2Payload(sessionId: string): Promise<Tier2Payload> {
+  async tier2Payload(
+    sessionId: string,
+    options: { includeAssertions?: boolean } = {},
+  ): Promise<Tier2Payload> {
     const session = this.sessions.find((s) => s.sessionId === sessionId);
     if (!session)
       throw new VaultRefusedError(`Session not found: ${sessionId}`);
-    return tier2Payload({
-      items: session.items.map((i) => ({
-        challenge: i.challenge,
-        answer: i.answer,
-      })),
-    });
+    const include = options.includeAssertions === true;
+    const byCoachId = new Map(
+      [...this.notes.values()].map((n) => [
+        n.coachId,
+        n.concept?.assertions ?? [],
+      ]),
+    );
+    return tier2Payload(
+      {
+        items: session.items.map((i) => ({
+          challenge: i.challenge,
+          answer: i.answer,
+          ...(include
+            ? { coreAssertions: byCoachId.get(i.coachId) ?? [] }
+            : {}),
+        })),
+      },
+      { allowAssertions: include },
+    );
   }
 
   async plan(request: FilingRequest, execute: boolean): Promise<FilingPlan> {
@@ -358,16 +384,10 @@ export class ScriptedStudyPartner implements StudyPartner {
   readonly quotes: string[] = [];
   readonly checks: StudyCheck[] = [];
   readonly checked: string[] = [];
-  readonly choices: (number | null)[] = [];
-  readonly offered: string[][] = [];
-
-  async chooseChapter(request: ChapterChoice): Promise<number | null> {
-    this.offered.push(request.chapters);
-    return this.choices.length ? this.choices.shift()! : null;
-  }
 
   readonly hintedFrom: string[] = [];
   readonly failing = new Set<string>();
+  readonly requests: StudyRequest[] = [];
   readonly styles: string[] = [];
 
   async clue(request: StudyRequest): Promise<string> {
@@ -391,6 +411,7 @@ export class ScriptedStudyPartner implements StudyPartner {
   async check(
     request: StudyRequest & { explanation: string },
   ): Promise<StudyCheck> {
+    this.requests.push(request);
     if (this.failing.has('check'))
       throw new UnusableReplyError('study partner', 'unusable');
     this.checked.push(request.explanation);

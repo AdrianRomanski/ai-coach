@@ -1,10 +1,10 @@
 ---
 id: ADR-0004
 title: 'Only the Tier 2 payload leaves the machine'
-status: accepted
+status: superseded
 date: 2026-10-24
 supersedes: []
-superseded_by: []
+superseded_by: ['ADR-0021']
 links: ['ADR-0002', 'ADR-0005', 'ADR-0006', 'ADR-0010']
 ---
 

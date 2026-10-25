@@ -2,12 +2,11 @@ import {
   StudyRound,
   asksForHelp,
   findBuzzwords,
+  groundedIn,
   locatePassage,
   quotedPassage,
-  groundedIn,
   scorePassage,
   type CoachingStyle,
-  type Note,
   type Passage,
   type SparringRules,
   type StudiedGap,
@@ -17,7 +16,12 @@ import {
   NotSparrableError,
   UnusableReplyError,
 } from '../errors.js';
-import { resolveStyle, resourcesByCoachId } from '../history.js';
+import {
+  referenceOf,
+  resolveStyle,
+  resourcesByCoachId,
+  type Reference,
+} from '../history.js';
 import type { StudyPartner, StyleClassifier } from '../ports/models.js';
 import type {
   FilingRequest,
@@ -25,10 +29,7 @@ import type {
   NotesRepository,
 } from '../ports/vault.js';
 
-export type GapPlace =
-  | { kind: 'here' }
-  | { kind: 'elsewhere'; chapter: string; passage: Passage | null }
-  | { kind: 'outside' };
+export type GapPlace = { kind: 'here' } | { kind: 'outside' };
 
 export interface StudyPrompt {
   gap: string;
@@ -37,14 +38,6 @@ export interface StudyPrompt {
   hint: string;
   place: GapPlace;
 }
-
-export interface Elsewhere {
-  title: string;
-  note: Note;
-  passage: Passage | null;
-}
-
-export type FindElsewhere = (gap: string) => Promise<Elsewhere | null>;
 
 export type StudyOutcome =
   | { kind: 'rephrase'; buzzwords: string[] }
@@ -55,17 +48,14 @@ export type StudyOutcome =
 
 export class StudySession {
   private readonly round: StudyRound;
-  private source: Note;
 
   constructor(
     private readonly partner: StudyPartner,
-    private readonly note: Note,
+    private readonly reference: Reference,
     private readonly rules: SparringRules,
     readonly style: CoachingStyle,
     gaps: string[],
-    private readonly elsewhere: FindElsewhere = async () => null,
   ) {
-    this.source = note;
     this.round = StudyRound.over(gaps);
   }
 
@@ -89,12 +79,7 @@ export class StudySession {
   async answer(text: string): Promise<StudyOutcome> {
     const current = this.round.current;
     if (!current) throw new NotFoundError('Every gap has been studied');
-    const request = {
-      note: this.source,
-      rules: this.rules,
-      style: this.style,
-      gap: current.gap,
-    };
+    const request = this.request(current.gap);
     if (asksForHelp(text)) {
       const [clue, passage] = await Promise.all([
         this.safely(
@@ -133,6 +118,16 @@ export class StudySession {
     };
   }
 
+  private request(gap: string) {
+    return {
+      note: this.reference.note,
+      rules: this.rules,
+      style: this.style,
+      assertions: this.reference.assertions,
+      gap,
+    };
+  }
+
   private async safely<T>(attempt: () => Promise<T>, fallback: T): Promise<T> {
     try {
       return await attempt();
@@ -143,46 +138,34 @@ export class StudySession {
   }
 
   private async passageFor(gap: string): Promise<Passage | null> {
+    if (this.reference.passages.length) {
+      const scored = this.reference.passages
+        .map((passage) => ({
+          passage,
+          score: scorePassage(passage.text, gap)?.score ?? 0,
+        }))
+        .sort((a, b) => b.score - a.score);
+      return scored[0]!.passage;
+    }
     const quote = await this.safely(
-      () =>
-        this.partner.quote({
-          note: this.source,
-          rules: this.rules,
-          style: this.style,
-          gap,
-        }),
+      () => this.partner.quote(this.request(gap)),
       '',
     );
-    return (
-      quotedPassage(this.source.body, quote) ??
-      locatePassage(this.source.body, `${quote} ${gap}`)
-    );
+    const body = this.reference.note.body;
+    return quotedPassage(body, quote) ?? locatePassage(body, `${quote} ${gap}`);
   }
 
   private async prompt(): Promise<StudyPrompt | null> {
     const current = this.round.current;
     if (!current) return null;
-    const place = await this.place(current.gap);
+    const place: GapPlace = groundedIn(this.reference.text, current.gap)
+      ? { kind: 'here' }
+      : { kind: 'outside' };
     const hint = await this.safely(
-      () =>
-        this.partner.hint({
-          note: this.source,
-          rules: this.rules,
-          style: this.style,
-          gap: current.gap,
-        }),
+      () => this.partner.hint(this.request(current.gap)),
       'How would you explain this point in your own words?',
     );
     return { gap: current.gap, ...this.round.position, hint, place };
-  }
-
-  private async place(gap: string): Promise<GapPlace> {
-    this.source = this.note;
-    if (groundedIn(this.note.body, gap)) return { kind: 'here' };
-    const found = await this.elsewhere(gap);
-    if (!found) return { kind: 'outside' };
-    this.source = found.note;
-    return { kind: 'elsewhere', chapter: found.title, passage: found.passage };
   }
 }
 
@@ -210,7 +193,7 @@ export class Studying {
     const note = await this.deps.notes.readNote(path);
     if (note.rawRole === 'index') {
       throw new NotSparrableError(
-        `${path} is a book's index: study one of its chapters instead`,
+        `${path} is a book's index: study a concept note that quotes it instead`,
       );
     }
     const latest = note.sessions.at(-1);
@@ -223,86 +206,11 @@ export class Studying {
       note,
       session: new StudySession(
         this.deps.partner,
-        { title: note.title, body: note.body },
+        referenceOf(note),
         this.deps.rules,
         await resolveStyle(note, this.deps.rules, this.deps.classifier, style),
         latest.gaps,
-        note.chapter ? this.siblingSearch(note) : undefined,
       ),
-    };
-  }
-
-  private siblingSearch(note: NoteDetails): FindElsewhere {
-    const folder = note.path.slice(0, note.path.lastIndexOf('/') + 1);
-    let chapters: Promise<Map<string, NoteDetails[]>> | null = null;
-    const load = async () => {
-      const { notes } = await this.deps.notes.listNotes({
-        bucket: 'resources',
-      });
-      const paths = notes
-        .map((n) => n.path)
-        .filter(
-          (p) =>
-            p !== note.path &&
-            p.startsWith(folder) &&
-            !p.slice(folder.length).includes('/'),
-        );
-      const grouped = new Map<string, NoteDetails[]>();
-      for (const sibling of await Promise.all(
-        paths.map((p) => this.deps.notes.readNote(p)),
-      )) {
-        const title = sibling.title.replace(/\s*\(\d+ of \d+\)\s*$/, '');
-        grouped.set(title, [...(grouped.get(title) ?? []), sibling]);
-      }
-      return grouped;
-    };
-    return async (gap) => {
-      chapters ??= load();
-      const grouped = await chapters;
-      const titles = [...grouped.keys()];
-      if (!titles.length) return null;
-
-      const candidates = titles
-        .flatMap((title) =>
-          grouped.get(title)!.map((part) => ({
-            title,
-            part,
-            scored: scorePassage(part.body, gap),
-          })),
-        )
-        .filter((c) => c.scored)
-        .sort((a, b) => b.scored!.score - a.scored!.score)
-        .filter((c, i, all) => all.findIndex((o) => o.title === c.title) === i)
-        .slice(0, 3);
-
-      if (candidates.length) {
-        const choice = await this.deps.partner.chooseChapter({
-          rules: this.deps.rules,
-          gap,
-          chapters: candidates.map(
-            (c) => `${c.title}: ${c.scored!.passage.text}`,
-          ),
-        });
-        const chosen = candidates[choice ?? 0]!;
-        return {
-          title: chosen.title,
-          note: { title: chosen.part.title, body: chosen.scored!.passage.text },
-          passage: chosen.scored!.passage,
-        };
-      }
-
-      const choice = await this.deps.partner.chooseChapter({
-        rules: this.deps.rules,
-        gap,
-        chapters: titles,
-      });
-      if (choice === null || !titles[choice]) return null;
-      const part = grouped.get(titles[choice])![0]!;
-      return {
-        title: titles[choice],
-        note: { title: part.title, body: part.body },
-        passage: null,
-      };
     };
   }
 

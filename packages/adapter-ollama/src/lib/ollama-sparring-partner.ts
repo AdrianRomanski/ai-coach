@@ -40,17 +40,19 @@ export class OllamaSparringPartner implements SparringPartner {
   }
 
   async openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge> {
-    const focus = await this.focus(request);
-    const scope = await this.client.lines(
-      scopeMessages(request, this.client.nonce()),
-      5,
-    );
+    const fixed = request.assertions.length > 0;
+    const focus = fixed
+      ? `This note teaches that ${request.assertions.map((a) => a.trim().replace(/\.$/, '')).join('; ')}.`
+      : await this.focus(request);
+    const scope = fixed
+      ? [...request.assertions]
+      : await this.client.lines(scopeMessages(request, this.client.nonce()), 5);
     const challenge = await this.client.sentence(
       challengeMessages(request, focus, this.client.nonce()),
       { kind: 'question' },
     );
     const jargon =
-      request.style === 'feynman'
+      request.style === 'feynman' && !fixed
         ? await this.client.lines(
             jargonMessages(request, this.client.nonce()),
             3,

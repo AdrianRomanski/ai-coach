@@ -1,10 +1,10 @@
 ---
 id: ADR-0012
 title: 'Spar book chapters, never the book index'
-status: accepted
+status: superseded
 date: 2026-10-24
 supersedes: []
-superseded_by: []
+superseded_by: ['ADR-0018']
 links: ['ADR-0003', 'ADR-0005', 'ADR-0013']
 ---
 

@@ -147,8 +147,18 @@ export class VaultClient {
     return this.call('due_for_review', args, DueForReviewResult);
   }
 
-  tier2Payload(sessionId: string): Promise<Tier2Payload> {
-    return this.call('tier2_payload', { session_id: sessionId }, Tier2Payload);
+  tier2Payload(
+    sessionId: string,
+    includeAssertions = false,
+  ): Promise<Tier2Payload> {
+    return this.call(
+      'tier2_payload',
+      {
+        session_id: sessionId,
+        ...(includeAssertions ? { include_assertions: true } : {}),
+      },
+      Tier2Payload,
+    );
   }
 
   recordSession(input: RecordSessionInput): Promise<RecordSessionResult> {

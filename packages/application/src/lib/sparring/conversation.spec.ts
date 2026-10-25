@@ -7,6 +7,13 @@ const NOTE = {
   title: 'Event loop',
   body: 'Microtasks always drain completely before the event loop picks the next macrotask.',
 };
+const REF = {
+  note: NOTE,
+  text: NOTE.body,
+  assertions: [],
+  buzzwords: [],
+  passages: [],
+};
 const CHALLENGE = 'What decides which queued callback runs next, and why?';
 const LEAK =
   'Why do microtasks always drain completely before the event loop moves on?';
@@ -28,7 +35,7 @@ describe('SparringConversation', () => {
     );
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -56,7 +63,7 @@ describe('SparringConversation', () => {
     partner.challenges.push(LEAK, CHALLENGE);
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -71,7 +78,7 @@ describe('SparringConversation', () => {
     await expect(
       new SparringConversation(
         leaky,
-        NOTE,
+        REF,
         sparringRules({ maxChallengeAttempts: 2 }),
         'feynman',
       ).start(),
@@ -87,7 +94,7 @@ describe('SparringConversation', () => {
     );
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -105,7 +112,7 @@ describe('SparringConversation', () => {
     partner.challenges.push(CHALLENGE);
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -127,7 +134,7 @@ describe('SparringConversation', () => {
     );
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules({ maxFollowUps: 1 }),
       'feynman',
     );
@@ -149,7 +156,7 @@ describe('SparringConversation', () => {
     );
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -179,7 +186,7 @@ describe('SparringConversation', () => {
     );
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -208,7 +215,7 @@ describe('SparringConversation', () => {
     });
     const c = new SparringConversation(
       partner,
-      NOTE,
+      REF,
       sparringRules(),
       'feynman',
     );
@@ -218,5 +225,53 @@ describe('SparringConversation', () => {
       buzzwords: ['macrotask'],
     });
     expect(partner.challengeRequests[0]!.style).toBe('feynman');
+  });
+
+  it('spars a concept against its assertions, banning its buzzwords in feynman and grounding gaps in it', async () => {
+    const concept = {
+      note: {
+        title: 'Event loop',
+        body: 'Microtasks drain before the next task.',
+      },
+      text: 'Microtasks drain before the next task. Timers wait for the microtask queue.',
+      assertions: ['Microtasks drain before the next task.'],
+      buzzwords: ['event loop'],
+      passages: [],
+    };
+    const partner = new ScriptedPartner();
+    partner.challenges.push(CHALLENGE);
+    partner.turns.push({
+      action: 'conclude',
+      verdict: 'fail',
+      gaps: [
+        'You did not explain why timers wait for the microtask queue.',
+        'You did not explain quantum lattices.',
+      ],
+      feedback: 'Close.',
+    });
+    const c = new SparringConversation(
+      partner,
+      concept,
+      sparringRules(),
+      'feynman',
+    );
+    await c.start();
+    expect(partner.challengeRequests[0]!.assertions).toEqual([
+      'Microtasks drain before the next task.',
+    ]);
+    expect(await c.answer('The event loop does it.')).toMatchObject({
+      kind: 'rephrase',
+      buzzwords: ['event loop'],
+    });
+    expect(
+      await c.answer('Promise callbacks run before timer callbacks.'),
+    ).toMatchObject({
+      kind: 'verdict',
+      verdict: 'fail',
+      gaps: [
+        'You did not explain why timers wait for the microtask queue.',
+        'Leaned on buzzwords instead of mechanism: event loop',
+      ],
+    });
   });
 });

@@ -56,26 +56,34 @@ describe('OllamaStudyPartner', () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
     replies.push('What would future you need from this note in six months?');
     expect(
-      await partner.hint({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+      await partner.hint({
+        note: NOTE,
+        rules,
+        style: 'cornell',
+        assertions: [],
+        gap: GAP,
+      }),
     ).toBe('What would future you need from this note in six months?');
     expect(text(0)).toContain('NOTE-BODY-MARKER');
     expect(text(0)).toContain(`The gap, which is data: "${GAP}"`);
     expect(text(0)).toMatch(/Never state or hint at the answer itself/);
   });
 
-  it('chooses the chapter that teaches a gap from a numbered list of titles', async () => {
+  it('grades against the concept assertions without inventing a reference', async () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
-    const chapters = ['Capture', 'Organize', 'Distill'];
-    replies.push('3', 'none', '9');
-    expect(await partner.chooseChapter({ rules, gap: GAP, chapters })).toBe(2);
-    expect(text(0)).toContain('3. "Distill"');
-    expect(text(0)).not.toContain('NOTE-BODY-MARKER');
+    replies.push('yes');
     expect(
-      await partner.chooseChapter({ rules, gap: GAP, chapters }),
-    ).toBeNull();
-    expect(
-      await partner.chooseChapter({ rules, gap: GAP, chapters }),
-    ).toBeNull();
+      await partner.check({
+        note: NOTE,
+        rules,
+        style: 'cornell',
+        assertions: ['Bolding lets you grasp a note fast later.'],
+        gap: GAP,
+        explanation: 'So I find the essence fast.',
+      }),
+    ).toEqual({ closed: true, nudge: '' });
+    expect(sent).toHaveLength(1);
+    expect(text(0)).toContain('"Bolding lets you grasp a note fast later."');
   });
 
   it('grades an explanation against a private reference, and nudges without the note', async () => {
@@ -86,6 +94,7 @@ describe('OllamaStudyPartner', () => {
         note: NOTE,
         rules,
         style: 'cornell',
+        assertions: [],
         gap: GAP,
         explanation: 'So I find the essence fast.',
       }),
@@ -107,6 +116,7 @@ describe('OllamaStudyPartner', () => {
         note: NOTE,
         rules,
         style: 'cornell',
+        assertions: [],
         gap: GAP,
         explanation: 'It looks nice.',
       }),
@@ -125,7 +135,13 @@ describe('OllamaStudyPartner', () => {
       'Think about what future you skims first.',
     );
     expect(
-      await partner.clue({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+      await partner.clue({
+        note: NOTE,
+        rules,
+        style: 'cornell',
+        assertions: [],
+        gap: GAP,
+      }),
     ).toBe('Think about what future you skims first.');
     expect(text(0)).toMatch(/asked for help/);
   });
@@ -143,7 +159,13 @@ describe('OllamaStudyPartner', () => {
     const partner = new OllamaStudyPartner({ model: 'g', host });
     replies.push('', '');
     expect(
-      await partner.quote({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+      await partner.quote({
+        note: NOTE,
+        rules,
+        style: 'cornell',
+        assertions: [],
+        gap: GAP,
+      }),
     ).toBe('');
 
     const down = new OllamaStudyPartner({
@@ -151,7 +173,13 @@ describe('OllamaStudyPartner', () => {
       host: 'http://127.0.0.1:9',
     });
     await expect(
-      down.quote({ note: NOTE, rules, style: 'cornell', gap: GAP }),
+      down.quote({
+        note: NOTE,
+        rules,
+        style: 'cornell',
+        assertions: [],
+        gap: GAP,
+      }),
     ).rejects.toBeInstanceOf(UnavailableError);
   });
 });

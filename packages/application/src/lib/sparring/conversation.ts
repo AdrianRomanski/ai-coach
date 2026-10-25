@@ -10,6 +10,7 @@ import {
   type Verdict,
 } from '@ai-coach/domain';
 import { ChallengeLeakError } from '../errors.js';
+import type { Reference } from '../history.js';
 import type { SparringPartner } from '../ports/models.js';
 
 export type Turn =
@@ -20,16 +21,18 @@ export type Turn =
 
 export class SparringConversation {
   private round: SparringRound;
+  private readonly note: Note;
   private focus = '';
   private scope: string[] = [];
 
   constructor(
     private readonly partner: SparringPartner,
-    private readonly note: Note,
+    private readonly reference: Reference,
     private readonly rules: SparringRules,
     readonly style: CoachingStyle,
   ) {
-    this.round = SparringRound.over(note, rules);
+    this.note = reference.note;
+    this.round = SparringRound.over(this.note, rules);
   }
 
   get isConcluded(): boolean {
@@ -48,12 +51,17 @@ export class SparringConversation {
           note: this.note,
           rules: this.rules,
           style: this.style,
+          assertions: this.reference.assertions,
           rejected: [...rejected],
         });
-      if (jargon.length) {
+      const banned =
+        this.style === 'feynman'
+          ? [...jargon, ...this.reference.buzzwords]
+          : jargon;
+      if (banned.length) {
         this.round = SparringRound.over(this.note, {
           ...this.rules,
-          buzzwords: [...this.rules.buzzwords, ...jargon],
+          buzzwords: [...this.rules.buzzwords, ...banned],
         });
       }
       try {
@@ -103,7 +111,7 @@ export class SparringConversation {
       next.action === 'conclude'
         ? this.round.conclude(
             next.verdict,
-            next.gaps.filter((gap) => groundedIn(this.note.body, gap)),
+            next.gaps.filter((gap) => groundedIn(this.reference.text, gap)),
             next.feedback,
           )
         : this.round.conclude(

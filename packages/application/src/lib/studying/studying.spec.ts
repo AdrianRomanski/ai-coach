@@ -123,38 +123,56 @@ describe('Studying', () => {
     expect(vault.sessions).toHaveLength(1);
   });
 
-  it('sends a gap this chapter does not cover to the chapter of the same book that does', async () => {
-    const book = '3.Resources/0.Raw/Books/A/B/chapters/';
-    const intro = `${book}01 Intro.md`;
+  it('studies a concept note against its assertions, with its own verified quotes', async () => {
+    const concept = '3.Resources/Concepts/Progressive Summarization.md';
     const vault = new InMemoryVault();
-    const chapter = (n: number) => ({
-      book: 'B',
-      part: null,
-      chapter: n,
-      section: null,
-      pages: '1-2',
-    });
-    vault.put(intro, '## Page 5\nWelcome to the book about notes.', {
-      rawRole: 'chapter',
-      chapter: chapter(1),
-    });
-    vault.put(`${book}06 Distill.md`, BODY, {
-      rawRole: 'chapter',
-      chapter: chapter(6),
-    });
-    vault.put('3.Resources/Other/Unrelated.md', BODY);
+    vault.put(
+      concept,
+      'My summary: layers make a note faster to grasp later.',
+      {
+        rawRole: null,
+        concept: {
+          assertions: [
+            'Each layer of highlights is smaller, so future you can grasp a note in seconds.',
+          ],
+          buzzwords: ['progressive summarization'],
+          passages: [
+            {
+              quote: 'Capture means keeping only what resonates with you.',
+              note: 'raw/a.md',
+              pages: '40',
+              found: true,
+            },
+            {
+              quote:
+                'Distill by bolding and highlighting the best passages so future you finds the essence.',
+              note: 'raw/a.md',
+              pages: '98-99',
+              found: true,
+            },
+            {
+              quote: 'A quote the book no longer contains.',
+              note: 'raw/a.md',
+              pages: '7',
+              found: false,
+            },
+          ],
+          problems: [],
+        },
+      },
+    );
     await vault.record(
       {
         tier: 1,
         date: '2026-10-24',
         items: [
           {
-            note: { path: intro },
+            note: { path: concept },
             challenge: 'C?',
             answer: 'A.',
             verdict: 'fail',
             gaps: [
-              'You did not explain why highlighting and bolding help future you find the essence.',
+              'You did not explain why bolding and highlighting help future you.',
               'You did not explain quantum lattices.',
             ],
             nextReview: '2026-10-25',
@@ -164,8 +182,7 @@ describe('Studying', () => {
       true,
     );
     const partner = new ScriptedStudyPartner();
-    partner.choices.push(0, null);
-    partner.checks.push({ closed: true, nudge: '' });
+    partner.checks.push({ closed: false, nudge: 'Not yet.' });
     const studying = new Studying({
       notes: vault,
       partner,
@@ -173,26 +190,23 @@ describe('Studying', () => {
       rules: sparringRules(),
     });
 
-    const { session } = await studying.open(intro);
-    const first = await session.start();
-    expect(first!.place).toEqual({
-      kind: 'elsewhere',
-      chapter: '06 Distill',
-      passage: expect.objectContaining({ page: 41 }),
+    const { session } = await studying.open(concept);
+    expect((await session.start())!.place).toEqual({ kind: 'here' });
+    expect(await session.answer('It looks nice.')).toEqual({
+      kind: 'retry',
+      nudge: 'Not yet.',
+      passage: {
+        text: 'Distill by bolding and highlighting the best passages so future you finds the essence.',
+        page: 98,
+      },
     });
-    expect(partner.hintedFrom).toEqual(['06 Distill']);
-    expect(partner.offered[0]).toEqual([
-      expect.stringMatching(/^06 Distill: Distill by highlighting/),
-    ]);
-
-    const next = await session.answer(
-      'Bolding lets future me find the essence fast.',
-    );
-    expect(next).toMatchObject({
-      kind: 'closed',
-      next: { place: { kind: 'outside' } },
+    expect(partner.requests.at(-1)).toMatchObject({
+      assertions: [
+        'Each layer of highlights is smaller, so future you can grasp a note in seconds.',
+      ],
     });
-    expect(partner.hintedFrom).toEqual(['06 Distill', '01 Intro']);
+    await session.skip();
+    expect(session.gaps.at(-1)!.status).toBe('open');
   });
 
   it('answers a request for help with a clue and the passage, without using an attempt', async () => {

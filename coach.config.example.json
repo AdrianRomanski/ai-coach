@@ -9,7 +9,8 @@
   "judge": {
     "model": "gemini-4-argon",
     "fallbackModel": "gemini-3.8-flash",
-    "thinkingLevel": "MEDIUM"
+    "thinkingLevel": "MEDIUM",
+    "includeAssertions": true
   },
   "sparring": {
     "style": "auto",

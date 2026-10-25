@@ -71,6 +71,7 @@ function setup() {
       pending,
       judge,
       ladder,
+      includeAssertions: false,
     }),
     review: new Review(vault, pending),
   };
@@ -126,49 +127,88 @@ describe('coaching style', () => {
   });
 });
 
-describe('books split into chapters', () => {
+describe('judging a concept', () => {
+  it('sends its core assertions only when the switch is on', async () => {
+    const concept = '3.Resources/Concepts/Microtasks.md';
+    for (const includeAssertions of [true, false]) {
+      const vault = new InMemoryVault();
+      vault.put(concept, 'Microtasks first.', {
+        rawRole: null,
+        concept: {
+          assertions: ['Microtasks drain before the next task.'],
+          buzzwords: [],
+          passages: [],
+          problems: [],
+        },
+      });
+      const pending = new InMemoryPending();
+      const judge = new ScriptedJudge();
+      const recorded = await vault.record(
+        {
+          tier: 1,
+          date: '2026-10-24',
+          items: [
+            {
+              note: { path: concept },
+              challenge: 'Why?',
+              answer: 'Because.',
+              verdict: 'pass',
+              gaps: [],
+              nextReview: '2026-10-27',
+            },
+          ],
+        },
+        true,
+      );
+      await pending.add({
+        sessionId: recorded.sessionId,
+        date: '2026-10-24',
+        coachIds: [recorded.items[0]!.coachId],
+      });
+      judge.reports.push({ model: 'argon', items: [judgement('pass')] });
+      const judging = new Judging({
+        notes: vault,
+        sessions: vault,
+        pending,
+        judge,
+        ladder: DEFAULT_LADDER,
+        includeAssertions,
+      });
+      await judging.judge((await judging.select([]))[0]!, '2026-10-24');
+      expect(judge.payloads[0]!.items[0]).toEqual(
+        includeAssertions
+          ? {
+              challenge: 'Why?',
+              answer: 'Because.',
+              coreAssertions: ['Microtasks drain before the next task.'],
+            }
+          : { challenge: 'Why?', answer: 'Because.' },
+      );
+    }
+  });
+});
+
+describe('raw material', () => {
   const BOOK = '3.Resources/0.Raw/Books/Tiago Forte/Building a Second Brain';
   const INDEX = `${BOOK}/text.md`;
   const CHAPTER = `${BOOK}/chapters/02 Capture.md`;
 
-  function withBook() {
+  it('is never offered and never sparred, chapter or index', async () => {
     const s = setup();
     s.vault.put(INDEX, 'The text is in the chapter notes.', {
       rawRole: 'index',
     });
-    s.vault.put(CHAPTER, 'Keep what resonates.', {
-      rawRole: 'chapter',
-      chapter: {
-        book: 'Building a Second Brain',
-        part: 'Part One',
-        chapter: 2,
-        section: null,
-        pages: '40-58',
-      },
-    });
-    return s;
-  }
-
-  it('offers chapters, never the index, and spars a chapter like any note', async () => {
-    const s = withBook();
+    s.vault.put(CHAPTER, 'Keep what resonates.', { rawRole: 'chapter' });
     const offered = (await s.sparring.candidates('2026-10-24')).map(
       (c) => c.path,
     );
-    expect(offered).toContain(CHAPTER);
+    expect(offered).not.toContain(CHAPTER);
     expect(offered).not.toContain(INDEX);
-
-    const { note } = await s.sparring.open(CHAPTER);
-    expect(note.chapter).toMatchObject({
-      book: 'Building a Second Brain',
-      pages: '40-58',
-    });
-  });
-
-  it('refuses the index before any dialogue starts', async () => {
-    const s = withBook();
-    await expect(s.sparring.open(INDEX)).rejects.toThrow(
-      /book's index: spar one of its chapters/,
-    );
+    for (const path of [CHAPTER, INDEX]) {
+      await expect(s.sparring.open(path)).rejects.toThrow(
+        /raw material: spar a concept note that quotes it/,
+      );
+    }
     expect(s.partner.challengeRequests).toEqual([]);
   });
 });

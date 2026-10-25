@@ -71,8 +71,22 @@ function details(note: ReadNoteResult): NoteDetails {
     mastery: note.history.mastery,
     nextReview: note.history.nextReview,
     body: note.body,
+    raw: note.raw,
     rawRole: note.rawRole,
     chapter: chapterOf(note),
+    concept: note.concept
+      ? {
+          assertions: note.concept.coreAssertions,
+          buzzwords: note.concept.forbiddenBuzzwords,
+          passages: note.concept.passages.map((p) => ({
+            quote: p.quote,
+            note: p.note,
+            pages: p.pages ?? null,
+            found: p.found,
+          })),
+          problems: note.concept.problems,
+        }
+      : null,
     style: isCoachingStyle(note.frontmatter['style'])
       ? note.frontmatter['style']
       : null,
@@ -158,9 +172,23 @@ export class McpVault implements NotesRepository, SessionLog, VaultFiling {
     };
   }
 
-  async tier2Payload(sessionId: string): Promise<Tier2Payload> {
+  async tier2Payload(
+    sessionId: string,
+    options: { includeAssertions?: boolean } = {},
+  ): Promise<Tier2Payload> {
+    const include = options.includeAssertions === true;
+    const raw = await this.client
+      .tier2Payload(sessionId, include)
+      .catch(translate);
     return tier2Payload(
-      await this.client.tier2Payload(sessionId).catch(translate),
+      {
+        items: raw.items.map(({ core_assertions, ...item }) =>
+          include && core_assertions
+            ? { ...item, coreAssertions: core_assertions }
+            : item,
+        ),
+      },
+      { allowAssertions: include },
     );
   }
 

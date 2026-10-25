@@ -1,7 +1,7 @@
 ---
 id: ADR-0020
 title: 'Asking for help in study never costs an attempt, and a bad model reply never ends a session'
-status: proposed
+status: accepted
 date: 2026-10-24
 supersedes: []
 superseded_by: []

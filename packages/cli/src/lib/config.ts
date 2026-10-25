@@ -32,6 +32,7 @@ const ConfigFile = z.strictObject({
       model: z.string().min(1).optional(),
       fallbackModel: z.string().min(1).optional(),
       thinkingLevel: z.enum(['MEDIUM', 'HIGH']).optional(),
+      includeAssertions: z.boolean().optional(),
     })
     .optional(),
   sparring: z
@@ -66,6 +67,7 @@ export interface CoachConfig {
     model: string | undefined;
     fallbackModel: string | undefined;
     thinkingLevel: 'MEDIUM' | 'HIGH' | undefined;
+    includeAssertions: boolean;
   };
   sparring: SparringRules;
   ladder: Ladder;
@@ -191,6 +193,7 @@ export function loadConfig(options: LoadConfigOptions = {}): CoachConfig {
       thinkingLevel:
         thinkingLevel(fromEnv('GEMINI_JUDGE_THINKING_LEVEL')) ??
         file.judge?.thinkingLevel,
+      includeAssertions: file.judge?.includeAssertions ?? true,
     },
     sparring,
     ladder,

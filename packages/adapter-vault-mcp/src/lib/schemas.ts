@@ -74,6 +74,24 @@ export const ReadNoteResult = z.object({
   title: z.string(),
   bucket: ParaBucket.nullable(),
   container: z.string().nullable(),
+  raw: z.boolean().optional().default(false),
+  concept: z
+    .object({
+      coreAssertions: z.array(z.string()),
+      forbiddenBuzzwords: z.array(z.string()),
+      fromNotes: z.array(z.string()),
+      passages: z.array(
+        z.object({
+          quote: z.string(),
+          note: z.string(),
+          pages: z.string().optional(),
+          found: z.boolean(),
+          problem: z.string().optional(),
+        }),
+      ),
+      problems: z.array(z.string()),
+    })
+    .optional(),
   rawRole: z
     .enum(['index', 'chapter'])
     .nullish()
@@ -132,12 +150,19 @@ export const DueForReviewResult = z.object({
     z.object({
       path: z.string(),
       title: z.string(),
+      concept: z.boolean().optional(),
       coachId: z.string(),
       nextReview: IsoDate,
       mastery: Mastery,
     }),
   ),
-  unsparred: z.array(z.object({ path: z.string(), title: z.string() })),
+  unsparred: z.array(
+    z.object({
+      path: z.string(),
+      title: z.string(),
+      concept: z.boolean().optional(),
+    }),
+  ),
   orphaned: z.array(
     z.object({ coachId: z.string(), lastSession: z.string().nullable() }),
   ),
@@ -146,7 +171,13 @@ export const DueForReviewResult = z.object({
 export type DueForReviewResult = z.infer<typeof DueForReviewResult>;
 
 export const Tier2Payload = z.strictObject({
-  items: z.array(z.strictObject({ challenge: z.string(), answer: z.string() })),
+  items: z.array(
+    z.strictObject({
+      challenge: z.string(),
+      answer: z.string(),
+      core_assertions: z.array(z.string()).optional(),
+    }),
+  ),
 });
 export type Tier2Payload = z.infer<typeof Tier2Payload>;
 

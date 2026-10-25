@@ -6,7 +6,12 @@ import {
   type SparringRules,
 } from '@ai-coach/domain';
 import { NotFoundError, NotSparrableError } from '../errors.js';
-import { resolveStyle, resourcesByCoachId, tier2History } from '../history.js';
+import {
+  referenceOf,
+  resolveStyle,
+  resourcesByCoachId,
+  tier2History,
+} from '../history.js';
 import type { SparringPartner, StyleClassifier } from '../ports/models.js';
 import type { PendingJudgements } from '../ports/state.js';
 import type {
@@ -54,12 +59,12 @@ export class Sparring {
       ...report.due.map((n) => ({
         path: n.path,
         title: n.title,
-        reason: `due ${n.nextReview}, ${n.mastery}`,
+        reason: `${n.concept ? 'concept, ' : ''}due ${n.nextReview}, ${n.mastery}`,
       })),
       ...report.unsparred.map((n) => ({
         path: n.path,
         title: n.title,
-        reason: 'never sparred',
+        reason: `${n.concept ? 'concept, ' : ''}never sparred`,
       })),
     ];
   }
@@ -86,16 +91,16 @@ export class Sparring {
         `${path}: only notes under 3.Resources can be sparred`,
       );
     }
-    if (note.rawRole === 'index') {
+    if (note.raw) {
       throw new NotSparrableError(
-        `${path} is a book's index: spar one of its chapters instead`,
+        `${path} is raw material: spar a concept note that quotes it instead`,
       );
     }
     return {
       note,
       conversation: new SparringConversation(
         this.deps.partner,
-        { title: note.title, body: note.body },
+        referenceOf(note),
         this.deps.rules,
         await resolveStyle(note, this.deps.rules, this.deps.classifier, style),
       ),

@@ -40,6 +40,7 @@ export interface JudgingDeps {
   pending: PendingJudgements;
   judge: Judge;
   ladder: Ladder;
+  includeAssertions: boolean;
 }
 
 export class Judging {
@@ -60,7 +61,9 @@ export class Judging {
   }
 
   async judge(session: PendingSession, today: string): Promise<JudgedSession> {
-    const payload = await this.deps.sessions.tier2Payload(session.sessionId);
+    const payload = await this.deps.sessions.tier2Payload(session.sessionId, {
+      includeAssertions: this.deps.includeAssertions,
+    });
     if (payload.items.length !== session.coachIds.length) {
       throw new PayloadMismatchError(
         `${session.sessionId} has ${payload.items.length} items but ${session.coachIds.length} notes were recorded for it`,

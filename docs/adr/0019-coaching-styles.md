@@ -1,7 +1,7 @@
 ---
 id: ADR-0019
 title: 'Coach in one of four styles, chosen per note'
-status: proposed
+status: accepted
 date: 2026-10-24
 supersedes: []
 superseded_by: []
@@ -17,7 +17,7 @@ Tier 1 asked every note for its mechanism: "explain how and why it works". On a 
 ## Decision
 
 1. **Four coaching styles**, each with its own rules, opening stance, probing stance and bar for a closed gap, defined in the domain:
-   - `feynman`: plain words for a newcomer, the steps in order, an analogy where it helps; the note's three most technical terms are banned for the round, on top of the usual buzzwords.
+   - `feynman`: plain words for a newcomer, the steps in order, an analogy where it helps; a concept note's `forbidden_buzzwords` are banned for the round, and for any other note Gemma names its three most technical terms to ban, on top of the usual buzzwords.
    - `socratic`: never "what is X"; commit to a claim, then test it against a counter-example or edge case.
    - `cornell`: the author's thesis, the problem it answers, the argument or evidence and the takeaway; never a low-level mechanism.
    - `devil`: a skeptical principal engineer; failure modes, trade-offs, hidden costs and recovery.
