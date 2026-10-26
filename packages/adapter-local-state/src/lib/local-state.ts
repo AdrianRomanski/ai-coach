@@ -5,6 +5,7 @@ import type {
   PendingJudgements,
   PendingSession,
 } from '@ai-coach/application';
+import { COACHING_STYLES } from '@ai-coach/domain';
 import { z } from 'zod';
 
 const PendingFile = z.object({
@@ -13,6 +14,7 @@ const PendingFile = z.object({
       sessionId: z.string(),
       date: z.string(),
       coachIds: z.array(z.string()).min(1),
+      styles: z.record(z.string(), z.enum(COACHING_STYLES)).optional(),
     }),
   ),
 });

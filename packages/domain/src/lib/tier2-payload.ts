@@ -1,9 +1,11 @@
+import { isCoachingStyle, type CoachingStyle } from './coaching-style.js';
 import { InvalidTier2PayloadError } from './errors.js';
 
 export interface Tier2Item {
   readonly challenge: string;
   readonly answer: string;
   readonly coreAssertions?: readonly string[];
+  readonly style?: CoachingStyle;
 }
 
 export interface Tier2Payload {
@@ -50,19 +52,25 @@ export function tier2Payload(
         onlyKeys(
           item,
           rules.allowAssertions
-            ? ['challenge', 'answer', 'coreAssertions']
-            : ['challenge', 'answer'],
+            ? ['challenge', 'answer', 'style', 'coreAssertions']
+            : ['challenge', 'answer', 'style'],
           `Item ${i + 1}`,
         );
-        const { challenge, answer, coreAssertions } = item;
+        const { challenge, answer, coreAssertions, style } = item;
         if (typeof challenge !== 'string' || !challenge.trim()) {
           throw new InvalidTier2PayloadError(`Item ${i + 1} needs a challenge`);
         }
         if (typeof answer !== 'string' || !answer.trim()) {
           throw new InvalidTier2PayloadError(`Item ${i + 1} needs an answer`);
         }
+        if (style !== undefined && !isCoachingStyle(style)) {
+          throw new InvalidTier2PayloadError(
+            `Item ${i + 1} has an unknown coaching style`,
+          );
+        }
+        const styled = style === undefined ? {} : { style };
         if (coreAssertions === undefined) {
-          return Object.freeze({ challenge, answer });
+          return Object.freeze({ challenge, answer, ...styled });
         }
         if (
           !Array.isArray(coreAssertions) ||
@@ -75,6 +83,7 @@ export function tier2Payload(
         return Object.freeze({
           challenge,
           answer,
+          ...styled,
           coreAssertions: Object.freeze([...coreAssertions]),
         });
       }),

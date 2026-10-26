@@ -112,6 +112,28 @@ describe('GeminiJudge', () => {
     );
   });
 
+  it('tells the judge the style each item was sparred in, and the hand-wave bar of every style', async () => {
+    const client = new FakeClient([{ items: [clean, clean] }]);
+    await new GeminiJudge({ client, nonce: () => 'n4' }).judge({
+      items: [
+        { challenge: 'Thesis?', answer: 'Layers.', style: 'cornell' },
+        { challenge: 'How?', answer: 'Steps.' },
+      ],
+    });
+    const [request] = client.requests;
+    expect(request!.contents).toContain(
+      '<item-n4 index="1">\n<style-n4>cornell</style-n4>\n<challenge-n4>',
+    );
+    expect(request!.contents).toContain('<item-n4 index="2">\n<challenge-n4>');
+    const instruction = request!.config.systemInstruction;
+    expect(instruction).toMatch(
+      /Style cornell: a claim is a hand-wave when it states the author's conclusion without the reason or evidence/,
+    );
+    expect(instruction).toMatch(
+      /Without a style: a claim is a hand-wave when it names a result without the steps/,
+    );
+  });
+
   it('cannot be steered by a fence-closing answer', async () => {
     const client = new FakeClient([{ items: [clean] }]);
     await new GeminiJudge({ client, nonce: () => 'n2' }).judge({

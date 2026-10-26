@@ -43,6 +43,7 @@ export interface Reference {
   assertions: string[];
   buzzwords: string[];
   passages: Passage[];
+  sources: string[];
 }
 
 function firstPage(pages: string | null): number | null {
@@ -58,11 +59,14 @@ export function referenceOf(note: NoteDetails): Reference {
       assertions: [],
       buzzwords: [],
       passages: [],
+      sources: [],
     };
   }
-  const passages = note.concept.passages
-    .filter((p) => p.found)
-    .map((p) => ({ text: p.quote, page: firstPage(p.pages) }));
+  const found = note.concept.passages.filter((p) => p.found);
+  const passages = found.map((p) => ({
+    text: p.quote,
+    page: firstPage(p.pages),
+  }));
   const text = [
     ...note.concept.assertions,
     ...passages.map((p) => p.text),
@@ -74,5 +78,6 @@ export function referenceOf(note: NoteDetails): Reference {
     assertions: note.concept.assertions,
     buzzwords: note.concept.buzzwords,
     passages,
+    sources: [...new Set(found.map((p) => p.note))],
   };
 }

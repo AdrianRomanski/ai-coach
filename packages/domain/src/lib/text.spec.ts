@@ -1,4 +1,10 @@
-import { findBuzzwords, fold, longestSharedRun, quotesSource } from './text.js';
+import {
+  findBuzzwords,
+  fold,
+  longestSharedRun,
+  quotesSource,
+  saidIn,
+} from './text.js';
 
 describe('fold', () => {
   it('drops diacritics, including the ones NFD cannot split', () => {
@@ -50,5 +56,22 @@ describe('verbatim detection', () => {
     expect(
       quotesSource('What decides which queued callback runs next?', note, 6),
     ).toBe(false);
+  });
+});
+
+describe('saidIn', () => {
+  const answers = [
+    'it helps take the essence of text',
+    'Because we have layers: raw note, bolding, highlighting, summarization.',
+  ];
+
+  it('finds words the learner really wrote, ignoring case and punctuation', () => {
+    expect(saidIn(answers, 'We have layers raw note')).toBe(true);
+  });
+
+  it('refuses evidence the learner never wrote, or too short to show anything', () => {
+    expect(saidIn(answers, 'each layer is smaller than the last')).toBe(false);
+    expect(saidIn(answers, 'the essence')).toBe(false);
+    expect(saidIn(answers, '')).toBe(false);
   });
 });

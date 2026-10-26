@@ -11,7 +11,9 @@ describe('coaching styles', () => {
       const guide = STYLE_GUIDES[style];
       expect(guide.style).toBe(style);
       expect(guide.rules.some((r) => r.startsWith('Closed world'))).toBe(true);
-      expect(guide.challenge && guide.probe && guide.closes).toBeTruthy();
+      expect(
+        guide.challenge && guide.probe && guide.closes && guide.judged,
+      ).toBeTruthy();
     }
     expect(STYLE_GUIDES.cornell.rules.join(' ')).toMatch(
       /Never ask how something works at a low level/,

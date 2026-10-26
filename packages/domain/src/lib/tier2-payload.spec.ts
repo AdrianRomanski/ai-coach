@@ -79,3 +79,18 @@ describe('sparringRules', () => {
     );
   });
 });
+
+describe('tier2Payload with a coaching style', () => {
+  it('carries the style the round was sparred in, and refuses an unknown one', () => {
+    expect(
+      tier2Payload({
+        items: [{ challenge: 'Why?', answer: 'Because.', style: 'cornell' }],
+      }).items[0],
+    ).toEqual({ challenge: 'Why?', answer: 'Because.', style: 'cornell' });
+    expect(() =>
+      tier2Payload({
+        items: [{ challenge: 'Why?', answer: 'Because.', style: 'strict' }],
+      }),
+    ).toThrow(InvalidTier2PayloadError);
+  });
+});

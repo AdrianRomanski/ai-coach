@@ -209,6 +209,93 @@ describe('Studying', () => {
     expect(session.gaps.at(-1)!.status).toBe('open');
   });
 
+  it('never shows the same quote twice, and looks in the source chapter when no quote fits', async () => {
+    const concept = '3.Resources/Concepts/Layers.md';
+    const vault = new InMemoryVault({
+      'raw/ch6.md': [
+        '## Page 100',
+        'Each of these layers uses a different kind of formatting so you can easily tell them apart.',
+        '## Page 101',
+        'Bold the main points first, and later highlight only the best of what you bolded.',
+      ].join('\n'),
+    });
+    vault.put(concept, 'Bold, then highlight, then summarize.', {
+      rawRole: null,
+      concept: {
+        assertions: ['Bolding comes before highlighting.'],
+        buzzwords: [],
+        passages: [
+          {
+            quote: 'main points of a note',
+            note: 'raw/ch6.md',
+            pages: '100',
+            found: true,
+          },
+          {
+            quote:
+              'you highlight the main points of a note, and then highlight the main points of those highlights',
+            note: 'raw/ch6.md',
+            pages: '100',
+            found: true,
+          },
+        ],
+        problems: [],
+      },
+    });
+    await vault.record(
+      {
+        tier: 1,
+        date: '2026-10-25',
+        items: [
+          {
+            note: { path: concept },
+            challenge: 'C?',
+            answer: 'A.',
+            verdict: 'fail',
+            gaps: [
+              'You did not explain why you highlight the main points of those highlights.',
+              'You did not explain why different formatting makes the layers easy to tell apart.',
+            ],
+            nextReview: '2026-10-26',
+          },
+        ],
+      },
+      true,
+    );
+    const partner = new ScriptedStudyPartner();
+    partner.checks.push(
+      { closed: false, nudge: 'Why?' },
+      { closed: false, nudge: 'Still why?' },
+      { closed: false, nudge: 'Formatting?' },
+    );
+    const { session } = await new Studying({
+      notes: vault,
+      partner,
+      classifier: new FixedClassifier(),
+      rules: sparringRules(),
+    }).open(concept);
+    await session.start();
+
+    const first = await session.answer('It is the essence.');
+    expect(first).toMatchObject({
+      kind: 'retry',
+      passage: {
+        text: 'you highlight the main points of a note, and then highlight the main points of those highlights',
+        page: 100,
+      },
+    });
+    expect(await session.answer('It is the core.')).toMatchObject({
+      kind: 'unresolved',
+    });
+    expect(await session.answer('It looks different.')).toMatchObject({
+      kind: 'retry',
+      passage: {
+        text: 'Each of these layers uses a different kind of formatting so you can easily tell them apart.',
+        page: 100,
+      },
+    });
+  });
+
   it('answers a request for help with a clue and the passage, without using an attempt', async () => {
     const { studying, partner } = await setup();
     partner.quotes.push(

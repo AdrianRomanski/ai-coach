@@ -2,6 +2,7 @@ import {
   MAX_ASSERTIONS,
   MAX_BUZZWORDS,
   MIN_QUOTE,
+  WHY_IT_MATTERS,
   conceptDraft,
   extractMarks,
   quotesFrom,
@@ -126,6 +127,10 @@ export class Distilling {
   }
 
   async questions(idea: Idea, summary: string): Promise<string[]> {
+    return [...(await this.gapQuestions(idea, summary)), WHY_IT_MATTERS];
+  }
+
+  private async gapQuestions(idea: Idea, summary: string): Promise<string[]> {
     try {
       const asked = await this.deps.partner.gapQuestions({
         rules: this.deps.rules,

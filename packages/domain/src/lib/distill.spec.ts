@@ -43,6 +43,8 @@ describe('extractMarks', () => {
         kind: 'highlight',
         text: 'highlight the best of what is bolded',
         page: 98,
+        within:
+          'Bold the main points, then highlight the best of what is bolded later.',
       },
       { kind: 'bold', text: 'discoverability for the future', page: 98 },
       {
@@ -56,6 +58,38 @@ describe('extractMarks', () => {
         page: 99,
       },
       { kind: 'bold', text: 'second bold style', page: 99 },
+    ]);
+  });
+
+  it('joins a bold or highlight that the converter split line by line', () => {
+    const page = [
+      '## Page 100',
+      '**The technique is simple: you highlight the ==main points of a note==, and then**',
+      '**highlight the main points of those highlights, so you can easily tell them apart.**',
+      '**To enhance the discover-**',
+      '**ability of this note, I add a ==second layer of==**',
+      '**==distillation==**. Plain text.',
+    ].join('\n');
+    expect(extractMarks(page)).toEqual([
+      {
+        kind: 'highlight',
+        text: 'main points of a note',
+        page: 100,
+        within:
+          'The technique is simple: you highlight the main points of a note, and then highlight the main points of those highlights, so you can easily tell them apart. To enhance the discoverability of this note, I add a second layer of distillation',
+      },
+      {
+        kind: 'highlight',
+        text: 'second layer of distillation',
+        page: 100,
+        within:
+          'The technique is simple: you highlight the main points of a note, and then highlight the main points of those highlights, so you can easily tell them apart. To enhance the discoverability of this note, I add a second layer of distillation',
+      },
+      {
+        kind: 'bold',
+        text: 'The technique is simple: you highlight the main points of a note, and then highlight the main points of those highlights, so you can easily tell them apart. To enhance the discoverability of this note, I add a second layer of distillation',
+        page: 100,
+      },
     ]);
   });
 
@@ -82,9 +116,9 @@ describe('quotesFrom', () => {
   it('prefers highlights, skips short or repeated text, summaries and notes', () => {
     expect(
       quotesFrom([
-        item(1, 'bold', 'discoverability for the future'),
+        item(1, 'bold', 'notes need discoverability for the future'),
         item(2, 'highlight', 'highlight the best of what is bolded'),
-        item(3, 'bold', 'too short'),
+        item(3, 'bold', 'too short to quote'),
         item(4, 'summary', 'My own words are never a quote.'),
         item(5, 'note', 'A reading note is never a quote either.', null),
         item(6, 'highlight', 'Highlight the best of what is bolded'),
@@ -97,10 +131,23 @@ describe('quotesFrom', () => {
       },
       {
         note: 'raw/ch6.md',
-        quote: 'discoverability for the future',
+        quote: 'notes need discoverability for the future',
         pages: '98',
       },
     ]);
+  });
+
+  it('quotes the bolded sentence around a short highlight, once', () => {
+    const sentence =
+      'The technique is simple: you highlight the main points of a note.';
+    expect(
+      quotesFrom([
+        { ...item(1, 'highlight', 'main points'), within: sentence },
+        { ...item(2, 'highlight', 'a note'), within: sentence },
+        item(3, 'bold', sentence),
+        item(4, 'highlight', 'second layer of'),
+      ]),
+    ).toEqual([{ note: 'raw/ch6.md', quote: sentence, pages: '98' }]);
   });
 });
 

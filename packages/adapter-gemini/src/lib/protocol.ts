@@ -1,4 +1,11 @@
-import { CLAIM_KINDS, FALLACIES, type Tier2Payload } from '@ai-coach/domain';
+import {
+  CLAIM_KINDS,
+  COACHING_STYLES,
+  FALLACIES,
+  STYLE_GUIDES,
+  type CoachingStyle,
+  type Tier2Payload,
+} from '@ai-coach/domain';
 import { z } from 'zod';
 
 export const JudgeReply = z.object({
@@ -40,7 +47,7 @@ export function systemInstruction(nonce: string): string {
     '2. Classify each claim: "mechanism" (how or why something happens), "assertion" (a fact stated) or "definition".',
     '3. Set "supported" to true only when the answer gives reasoning or steps for the claim.',
     `4. List the claim's fallacies, using only: ${FALLACIES.join(', ')}.`,
-    '5. Set "handWave" when the claim names a result without the steps that produce it, uses vague words in place of a mechanism, or leans on convention, magic or authority.',
+    `5. Set "handWave" by the bar of the item's style, given in <style-${nonce}>; any claim that leans on convention, magic or authority is also a hand-wave. ${styleBars()}`,
     '6. List "gaps": what the challenge requires that the answer does not explain, each as one short sentence.',
     '7. Verdict "pass" only if the challenge is fully answered, no claim has a fallacy and no claim is a hand-wave. Otherwise "fail".',
     '8. "reason" is one sentence on the verdict.',
@@ -51,8 +58,25 @@ export function systemInstruction(nonce: string): string {
   ].join('\n');
 }
 
+const MECHANISM_BAR =
+  'a claim is a hand-wave when it names a result without the steps that produce it, or uses vague words in place of a mechanism';
+
+function styleBars(): string {
+  return [
+    `Without a style: ${MECHANISM_BAR}.`,
+    ...COACHING_STYLES.map((s) => `Style ${s}: ${STYLE_GUIDES[s].judged}.`),
+  ].join(' ');
+}
+
 function neutralize(text: string): string {
-  return text.replace(/<(\/?)(item|challenge|answer|claims)-/gi, '‹$1$2-');
+  return text.replace(
+    /<(\/?)(item|challenge|answer|claims|style)-/gi,
+    '‹$1$2-',
+  );
+}
+
+function style(value: CoachingStyle | undefined, nonce: string): string {
+  return value ? `\n<style-${nonce}>${value}</style-${nonce}>` : '';
 }
 
 function claims(
@@ -68,7 +92,7 @@ export function userPrompt(payload: Tier2Payload, nonce: string): string {
   return payload.items
     .map(
       (item, i) =>
-        `<item-${nonce} index="${i + 1}">\n<challenge-${nonce}>\n${neutralize(item.challenge)}\n</challenge-${nonce}>\n<answer-${nonce}>\n${neutralize(item.answer)}\n</answer-${nonce}>${claims(item.coreAssertions, nonce)}\n</item-${nonce}>`,
+        `<item-${nonce} index="${i + 1}">${style(item.style, nonce)}\n<challenge-${nonce}>\n${neutralize(item.challenge)}\n</challenge-${nonce}>\n<answer-${nonce}>\n${neutralize(item.answer)}\n</answer-${nonce}>${claims(item.coreAssertions, nonce)}\n</item-${nonce}>`,
     )
     .join('\n\n');
 }

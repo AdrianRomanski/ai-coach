@@ -69,7 +69,12 @@ export class Judging {
         `${session.sessionId} has ${payload.items.length} items but ${session.coachIds.length} notes were recorded for it`,
       );
     }
-    const report = await this.deps.judge.judge(payload);
+    const report = await this.deps.judge.judge({
+      items: payload.items.map((item, i) => {
+        const style = session.styles?.[session.coachIds[i]!];
+        return style ? { ...item, style } : item;
+      }),
+    });
     if (report.items.length !== payload.items.length) {
       throw new PayloadMismatchError(
         `The judge returned ${report.items.length} judgements for ${payload.items.length} items`,

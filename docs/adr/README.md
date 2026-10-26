@@ -27,3 +27,6 @@ Every important or major change to ai-coach ships with an ADR in this folder; AD
 | [0021](0021-the-judge-may-see-core-assertions.md)                                 | Only the Tier 2 payload leaves the machine, and it may carry core assertions                | accepted               |
 | [0022](0022-keep-knowledge-notes-when-archiving-a-project.md)                     | Ask which knowledge notes to keep before archiving a project                                | accepted               |
 | [0023](0023-distill-concept-notes-from-the-learners-own-words.md)                 | Distill concept notes from the learner's own words, with the local model as helper          | accepted               |
+| [0024](0024-drop-a-tier1-gap-only-on-the-learners-own-words.md)                   | Drop a Tier 1 gap only when the learner's own words cover it                                | proposed               |
+| [0025](0025-judge-each-answer-by-the-style-it-was-sparred-in.md)                  | Judge each answer by the bar of the style it was sparred in                                 | proposed               |
+| [0026](0026-quote-whole-marked-sentences-and-ask-why-an-idea-matters.md)          | Quote whole marked sentences, ask why an idea matters, and never repeat a study quote       | proposed               |

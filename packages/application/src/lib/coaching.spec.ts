@@ -88,7 +88,9 @@ async function sparOnce(
   const { note, conversation } = await s.sparring.open(path);
   await conversation.start();
   await conversation.answer('My own explanation of the mechanism.');
-  const sparred: SparredNote[] = [{ note, result: conversation.result() }];
+  const sparred: SparredNote[] = [
+    { note, result: conversation.result(), style: conversation.style },
+  ];
   return s.sparring.record(await s.sparring.plan(sparred, today));
 }
 
@@ -243,6 +245,7 @@ describe('coaching use cases against in-memory adapters', () => {
         sessionId: recorded.sessionId,
         date: '2026-10-24',
         coachIds: [recorded.items[0]!.coachId],
+        styles: { [recorded.items[0]!.coachId]: 'feynman' },
       },
     ]);
     expect((await s.review.due('2026-10-24')).waitingForJudge).toBe(1);
@@ -259,6 +262,7 @@ describe('coaching use cases against in-memory adapters', () => {
     expect(s.judge.payloads[0]!.items[0]).toEqual({
       challenge: expect.any(String),
       answer: 'My own explanation of the mechanism.',
+      style: 'feynman',
     });
     expect(judged.notes[0]).toMatchObject({
       title: 'Event loop',

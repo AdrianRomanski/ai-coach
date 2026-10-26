@@ -1,4 +1,4 @@
-import { DomainError, sparringRules } from '@ai-coach/domain';
+import { DomainError, WHY_IT_MATTERS, sparringRules } from '@ai-coach/domain';
 import type { BookProgress } from '../ports/library.js';
 import {
   InMemoryLibrary,
@@ -38,7 +38,7 @@ function setup() {
       '> Layers make a note quick to grasp later.',
       '',
       '## Page 98',
-      'Notes need **discoverability for the future** above all.',
+      'Notes need **discoverability for the future of every note** above all.',
       'Then ==highlight the best of what is bolded== on a later pass.',
     ].join('\n'),
     { rawRole: 'chapter' },
@@ -92,7 +92,7 @@ describe('Distilling', () => {
     expect(material.map((m) => [m.id, m.kind, m.text, m.page])).toEqual([
       [1, 'summary', 'Layers make a note quick to grasp later.', null],
       [2, 'highlight', 'highlight the best of what is bolded', 98],
-      [3, 'bold', 'discoverability for the future', 98],
+      [3, 'bold', 'discoverability for the future of every note', 98],
       [4, 'bold', 'intermediate packets', 120],
       [5, 'note', 'Express means sharing small pieces early.', null],
     ]);
@@ -121,18 +121,19 @@ describe('Distilling', () => {
     ]);
   });
 
-  it('asks at most two gap questions and drafts at most six assertions, empty on an unusable reply', async () => {
+  it('asks at most two gap questions and always why the idea matters, and drafts at most six assertions', async () => {
     const { distilling, partner } = setup();
     const idea = (await distilling.ideas(await distilling.gather(BOOK)))[0]!;
     partner.questions = ['Why bold first?', ' ', 'What then?', 'And then?'];
     await expect(distilling.questions(idea, 'My summary.')).resolves.toEqual([
       'Why bold first?',
       'What then?',
+      WHY_IT_MATTERS,
     ]);
     partner.questions = unusable();
-    await expect(distilling.questions(idea, 'My summary.')).resolves.toEqual(
-      [],
-    );
+    await expect(distilling.questions(idea, 'My summary.')).resolves.toEqual([
+      WHY_IT_MATTERS,
+    ]);
 
     partner.assertions = Array.from({ length: 8 }, (_, i) => `Claim ${i}.`);
     const answers = [{ question: 'Why bold first?', answer: 'To skim.' }];
@@ -158,7 +159,11 @@ describe('Distilling', () => {
       ),
     ).resolves.toEqual([
       { note: CH5, quote: 'highlight the best of what is bolded', pages: '98' },
-      { note: CH5, quote: 'discoverability for the future', pages: '98' },
+      {
+        note: CH5,
+        quote: 'discoverability for the future of every note',
+        pages: '98',
+      },
     ]);
 
     await expect(

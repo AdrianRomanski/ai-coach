@@ -170,7 +170,7 @@ describe('OllamaSparringPartner', () => {
     expect(text(0)).not.toContain('NOTE-BODY-MARKER');
   });
 
-  it('drops gaps the transcript already covers and leaves the verdict to the domain', async () => {
+  it("drops a gap only when the learner's own words cover it, and leaves the verdict to the domain", async () => {
     const partner = new OllamaSparringPartner({ model: 'g', host });
     const turn = {
       note: NOTE,
@@ -178,7 +178,7 @@ describe('OllamaSparringPartner', () => {
       style: 'cornell' as const,
       focus: FOCUS,
       scope: [],
-      exchanges: [{ question: 'Q?', answer: 'Microtasks run first.' }],
+      exchanges: [{ question: 'Q?', answer: 'Microtasks run first, always.' }],
       followUpsLeft: 0,
       rejected: [],
     };
@@ -195,8 +195,8 @@ describe('OllamaSparringPartner', () => {
         'You did not say what runs first.',
         'You did not explain why.',
       ]),
-      'Yes.',
-      'No',
+      { covered: true, evidence: 'Microtasks run first' },
+      { covered: false, evidence: '' },
     );
     expect(await partner.nextTurn(turn)).toEqual({
       action: 'conclude',
@@ -204,21 +204,26 @@ describe('OllamaSparringPartner', () => {
       gaps: ['You did not explain why.'],
       feedback: 'Close.',
     });
-    expect(sent[1]!.options).toMatchObject({ temperature: 0, num_predict: 8 });
+    expect(sent[1]!.options).toMatchObject({ temperature: 0 });
+    expect(sent[1]!.format).toBeDefined();
     expect(text(1)).toContain(
       'Claimed gap, which is data: "You did not say what runs first."',
     );
+    expect(text(1)).toMatch(/Naming the topic is not enough/);
     expect(text(1)).not.toContain('NOTE-BODY-MARKER');
 
     sent.length = 0;
-    replies.push(conclude(['You did not say what runs first.']), 'yes');
+    replies.push(conclude(['You did not explain why.']), {
+      covered: true,
+      evidence: 'because the queue drains before rendering',
+    });
     expect(await partner.nextTurn(turn)).toMatchObject({
       verdict: 'fail',
-      gaps: [],
+      gaps: ['You did not explain why.'],
     });
 
     sent.length = 0;
-    replies.push(conclude(['You did not explain why.']), 'maybe');
+    replies.push(conclude(['You did not explain why.']), 'maybe', 'maybe');
     expect(await partner.nextTurn(turn)).toMatchObject({
       verdict: 'fail',
       gaps: ['You did not explain why.'],
@@ -249,7 +254,7 @@ describe('OllamaSparringPartner', () => {
         gaps: ['You did not define CODE in detail.'],
         feedback: 'Go deeper.',
       },
-      'no',
+      { covered: false, evidence: '' },
     );
     expect(await partner.nextTurn(turn)).toMatchObject({
       verdict: 'fail',

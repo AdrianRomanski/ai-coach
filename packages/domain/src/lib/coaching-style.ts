@@ -15,6 +15,7 @@ export interface StyleGuide {
   challenge: string;
   probe: string;
   closes: string;
+  judged: string;
 }
 
 const SHARED = [
@@ -39,6 +40,8 @@ export const STYLE_GUIDES: Record<CoachingStyle, StyleGuide> = {
       'Ask for the missing step, a plainer word for a term they used, or an analogy.',
     closes:
       'The explanation states the idea correctly in plain words; an example or analogy is welcome but not required.',
+    judged:
+      'a claim is a hand-wave when it names a result without the steps that produce it, or uses vague words in place of a mechanism',
   },
   socratic: {
     style: 'socratic',
@@ -54,6 +57,8 @@ export const STYLE_GUIDES: Record<CoachingStyle, StyleGuide> = {
       "Introduce a counter-example or edge case to the learner's last claim and ask whether it still holds and why.",
     closes:
       'The explanation states the idea correctly and says when it holds and when it does not.',
+    judged:
+      'a claim is a hand-wave when it is asserted without the reason it holds, or without saying when it stops holding; a low-level mechanism is not required',
   },
   cornell: {
     style: 'cornell',
@@ -69,6 +74,8 @@ export const STYLE_GUIDES: Record<CoachingStyle, StyleGuide> = {
       'Ask for the reason or evidence the author gives, or for the takeaway, not for a mechanism.',
     closes:
       "The explanation restates the author's point correctly in the learner's own words; no mechanism is needed.",
+    judged:
+      "a claim is a hand-wave when it states the author's conclusion without the reason or evidence behind it, or uses vague words such as essence or important in place of what the author actually argues; a low-level mechanism is not required",
   },
   devil: {
     style: 'devil',
@@ -84,6 +91,8 @@ export const STYLE_GUIDES: Record<CoachingStyle, StyleGuide> = {
       'Push on the weakest part of the answer with a realistic failure, a cost or a trade-off.',
     closes:
       'The explanation names a realistic failure mode or cost of the idea and how to handle it.',
+    judged:
+      'a claim is a hand-wave when it names a risk, cost or trade-off without the condition that causes it or what it costs; a low-level mechanism is not required',
   },
 };
 

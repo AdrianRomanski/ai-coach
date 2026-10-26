@@ -191,7 +191,11 @@ export async function spar(
       if (input.kind === 'skip') continue notes;
       showTurn(term, await conversation.answer(input.text));
     }
-    done.push({ note, result: conversation.result() });
+    done.push({
+      note,
+      result: conversation.result(),
+      style: conversation.style,
+    });
   }
 
   if (!done.length) {

@@ -165,7 +165,11 @@ export class OllamaClient {
     return null;
   }
 
-  async json<T>(messages: ChatMessage[], schema: z.ZodType<T>): Promise<T> {
+  async json<T>(
+    messages: ChatMessage[],
+    schema: z.ZodType<T>,
+    shape: { temperature?: number } = {},
+  ): Promise<T> {
     const { $schema: _ignored, ...format } = z.toJSONSchema(schema) as Record<
       string,
       unknown
@@ -175,6 +179,7 @@ export class OllamaClient {
       const raw = await this.chat(messages, {
         format,
         maxTokens: REPLY_RESERVE,
+        temperature: shape.temperature,
       });
       let data: unknown;
       try {

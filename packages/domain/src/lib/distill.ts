@@ -6,6 +6,7 @@ export interface Mark {
   kind: MarkKind;
   text: string;
   page: number | null;
+  within?: string;
 }
 
 export type MaterialKind = MarkKind | 'note';
@@ -17,6 +18,7 @@ export interface MaterialItem {
   note: string;
   chapter: string;
   page: number | null;
+  within?: string;
 }
 
 export interface ConceptPassageDraft {
@@ -38,16 +40,30 @@ export const MAX_ASSERTIONS = 6;
 export const MAX_BUZZWORDS = 5;
 export const MAX_PASSAGES = 12;
 export const MIN_QUOTE = 12;
+export const MIN_QUOTE_WORDS = 5;
+export const WHY_IT_MATTERS =
+  'Why does this idea matter: what problem does it solve, or what goes wrong without it?';
 
 const SUMMARY = /^>[ \t]*\[!summary\][^\n]*(?:\n>[^\n]*)*/gim;
 const HIGHLIGHT = /==(?=\S)(?:(?!\n[ \t]*\n)[\s\S])*?\S==/g;
 const BOLD = /(\*\*|__)(?=\S)(?:(?!\n[ \t]*\n)[\s\S])*?\S\1/g;
+const BOLD_RUN = /(\*\*|__)[ \t]*\n[ \t]*\1/g;
+const HIGHLIGHT_RUN = /==[ \t]*\n[ \t]*==/g;
 
 function clean(text: string): string {
   return text
     .replace(/==|\*\*|__/g, '')
+    .replace(/(\p{L})-[ \t]*\n[ \t]*(\p{Ll})/gu, '$1$2')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function joinRuns(text: string): string {
+  return text.replace(BOLD_RUN, '\n').replace(HIGHLIGHT_RUN, '\n');
+}
+
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
 }
 
 function summaries(text: string): string[] {
@@ -71,17 +87,30 @@ function marksOn(text: string, page: number | null): Mark[] {
     text: s,
     page,
   }));
-  const author = text.replace(SUMMARY, '');
+  const author = joinRuns(text.replace(SUMMARY, ''));
+  const bolds = [...author.matchAll(BOLD)].map((m) => ({
+    from: m.index,
+    to: m.index + m[0].length,
+    text: clean(m[0]),
+  }));
   const highlighted: [number, number][] = [];
   for (const m of author.matchAll(HIGHLIGHT)) {
-    highlighted.push([m.index, m.index + m[0].length]);
-    marks.push({ kind: 'highlight', text: clean(m[0]), page });
+    const from = m.index;
+    const to = m.index + m[0].length;
+    highlighted.push([from, to]);
+    const bold = bolds.find((b) => from >= b.from && to <= b.to);
+    marks.push({
+      kind: 'highlight',
+      text: clean(m[0]),
+      page,
+      ...(bold ? { within: bold.text } : {}),
+    });
   }
-  for (const m of author.matchAll(BOLD)) {
+  for (const bold of bolds) {
     const inside = highlighted.some(
-      ([from, to]) => m.index >= from && m.index + m[0].length <= to,
+      ([from, to]) => bold.from >= from && bold.to <= to,
     );
-    if (!inside) marks.push({ kind: 'bold', text: clean(m[0]), page });
+    if (!inside) marks.push({ kind: 'bold', text: bold.text, page });
   }
   return marks.filter((m) => m.text);
 }
@@ -104,15 +133,19 @@ export function quotesFrom(
   items: readonly MaterialItem[],
 ): ConceptPassageDraft[] {
   const ranked = [
-    ...items.filter((i) => i.kind === 'highlight'),
+    ...items
+      .filter((i) => i.kind === 'highlight')
+      .map((i) => ({ ...i, text: i.within ?? i.text })),
     ...items.filter((i) => i.kind === 'bold'),
   ];
-  const seen = new Set<string>();
+  const kept: string[] = [];
   const quotes: ConceptPassageDraft[] = [];
   for (const item of ranked) {
     const key = item.text.toLowerCase();
-    if (item.text.length < MIN_QUOTE || seen.has(key)) continue;
-    seen.add(key);
+    if (item.text.length < MIN_QUOTE || wordCount(item.text) < MIN_QUOTE_WORDS)
+      continue;
+    if (kept.some((k) => k.includes(key))) continue;
+    kept.push(key);
     quotes.push({
       note: item.note,
       quote: item.text,

@@ -38,6 +38,31 @@ describe('FilePendingJudgements', () => {
     ).toHaveLength(1);
   });
 
+  it('keeps the style each note was sparred in, and reads a queue written without styles', async () => {
+    const queue = new FilePendingJudgements(dir);
+    await writeFile(
+      queue.file,
+      JSON.stringify({
+        sessions: [{ sessionId: 'old', date: '2026-10-24', coachIds: ['c1'] }],
+      }),
+    );
+    await queue.add({
+      sessionId: 'new',
+      date: '2026-10-25',
+      coachIds: ['c2'],
+      styles: { c2: 'cornell' },
+    });
+    expect(await queue.list()).toEqual([
+      { sessionId: 'old', date: '2026-10-24', coachIds: ['c1'] },
+      {
+        sessionId: 'new',
+        date: '2026-10-25',
+        coachIds: ['c2'],
+        styles: { c2: 'cornell' },
+      },
+    ]);
+  });
+
   it('refuses a corrupt file instead of losing the queue', async () => {
     const queue = new FilePendingJudgements(dir);
     await writeFile(

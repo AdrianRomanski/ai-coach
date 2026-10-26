@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@ai-coach/application": "*",
+    "@ai-coach/domain": "*",
     "tslib": "^2.3.0",
     "zod": "^4.6.7"
   }

@@ -104,7 +104,7 @@ export function stem(word: string): string {
 }
 
 const STOPWORDS = new Set(
-  'that this with from have what your their there which about would could should into they them then than when where while does were been being also only just more most some such very will shall these those other each make makes made into over under like learner explain explained explains describe described note notes'.split(
+  'that this with from have what your their there which about would could should into they them then than when where while does were been being also only just more most some such very will shall these those other each make makes made into over under like learner explain explained explains describe described note notes answer answers hand waving'.split(
     ' ',
   ),
 );
@@ -127,7 +127,11 @@ function chunks(body: string, size: number): Passage[] {
       continue;
     }
     if (/^#/.test(line) || !line.trim()) continue;
-    for (const word of line.trim().split(/\s+/)) {
+    for (const word of line
+      .replace(/==|\*\*|__/g, '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)) {
       buffer.push(word);
       if (buffer.length >= size) flush();
     }
@@ -150,22 +154,27 @@ export function quotedPassage(
   return best && best.run >= 6 ? best.passage : null;
 }
 
-export function scorePassage(
-  body: string,
-  query: string,
-  size = 70,
-): { passage: Passage; score: number } | null {
-  const all = chunks(body, size).map((passage) => ({
-    passage,
-    words: new Set(words(passage.text).map(stem)),
-  }));
-  const terms = [
+function queryTerms(query: string): string[] {
+  return [
     ...new Set(
       words(query)
         .filter((w) => w.length >= 4 && !STOPWORDS.has(w))
         .map(stem),
     ),
   ];
+}
+
+export function scorePassage(
+  body: string,
+  query: string,
+  size = 70,
+  skip: ReadonlySet<string> = new Set(),
+): { passage: Passage; score: number } | null {
+  const all = chunks(body, size).map((passage) => ({
+    passage,
+    words: new Set(words(passage.text).map(stem)),
+  }));
+  const terms = queryTerms(query);
   if (!terms.length || !all.length) return null;
   const weight = new Map(
     terms.map((t) => {
@@ -176,6 +185,7 @@ export function scorePassage(
   );
   let best: { passage: Passage; score: number; hits: number } | null = null;
   for (const chunk of all) {
+    if (skip.has(chunk.passage.text)) continue;
     const hits = terms.filter((t) => chunk.words.has(t));
     const score = hits.reduce((sum, t) => sum + weight.get(t)!, 0);
     if (!best || score > best.score)
@@ -185,6 +195,28 @@ export function scorePassage(
   return best && best.hits >= 2 && best.score >= minimum
     ? { passage: best.passage, score: best.score }
     : null;
+}
+
+export function bestQuote(
+  quotes: readonly Passage[],
+  query: string,
+  skip: ReadonlySet<string> = new Set(),
+): Passage | null {
+  const terms = queryTerms(query);
+  let best: { quote: Passage; hits: number } | null = null;
+  for (const quote of quotes) {
+    if (skip.has(quote.text)) continue;
+    const own = new Set(words(quote.text).map(stem));
+    const hits = terms.filter((t) => own.has(t)).length;
+    if (
+      hits >= 2 &&
+      (!best ||
+        hits > best.hits ||
+        (hits === best.hits && quote.text.length > best.quote.text.length))
+    )
+      best = { quote, hits };
+  }
+  return best?.quote ?? null;
 }
 
 export function locatePassage(

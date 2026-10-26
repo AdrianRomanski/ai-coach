@@ -1,10 +1,12 @@
-import type {
-  ChallengeRequest,
-  NextTurn,
-  NextTurnRequest,
-  OpeningChallenge,
-  SparringPartner,
+import {
+  UnusableReplyError,
+  type ChallengeRequest,
+  type NextTurn,
+  type NextTurnRequest,
+  type OpeningChallenge,
+  type SparringPartner,
 } from '@ai-coach/application';
+import { saidIn } from '@ai-coach/domain';
 import { z } from 'zod';
 import {
   MAX_SENTENCE,
@@ -23,6 +25,11 @@ import {
 } from './prompts.js';
 
 const FOCUS_OPENING = /^this note teaches that\b/i;
+
+const GapCheck = z.object({
+  covered: z.boolean(),
+  evidence: z.string().max(MAX_SENTENCE * 2),
+});
 
 const NextTurnReply = z.object({
   action: z.enum(['probe', 'conclude']),
@@ -83,14 +90,30 @@ export class OllamaSparringPartner implements SparringPartner {
     request: NextTurnRequest,
     gaps: string[],
   ): Promise<string[]> {
+    const answers = request.exchanges.map((e) => e.answer);
     const kept: string[] = [];
     for (const gap of gaps) {
-      const covered = await this.client.yesNo(
-        gapCheckMessages(request, gap, this.client.nonce()),
-      );
-      if (covered !== true) kept.push(gap);
+      if (!(await this.covered(request, gap, answers))) kept.push(gap);
     }
     return kept;
+  }
+
+  private async covered(
+    request: NextTurnRequest,
+    gap: string,
+    answers: string[],
+  ): Promise<boolean> {
+    try {
+      const check = await this.client.json(
+        gapCheckMessages(request, gap, this.client.nonce()),
+        GapCheck,
+        { temperature: 0 },
+      );
+      return check.covered && saidIn(answers, check.evidence);
+    } catch (err) {
+      if (err instanceof UnusableReplyError) return false;
+      throw err;
+    }
   }
 
   private async focus(request: ChallengeRequest): Promise<string> {

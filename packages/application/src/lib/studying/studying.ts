@@ -1,6 +1,7 @@
 import {
   StudyRound,
   asksForHelp,
+  bestQuote,
   findBuzzwords,
   groundedIn,
   locatePassage,
@@ -15,6 +16,7 @@ import {
   NotFoundError,
   NotSparrableError,
   UnusableReplyError,
+  VaultRefusedError,
 } from '../errors.js';
 import {
   referenceOf,
@@ -46,8 +48,12 @@ export type StudyOutcome =
   | { kind: 'unresolved'; nudge: string; next: StudyPrompt | null }
   | { kind: 'help'; clue: string; passage: Passage | null };
 
+export type SourceReader = (path: string) => Promise<string>;
+
 export class StudySession {
   private readonly round: StudyRound;
+  private readonly shown = new Set<string>();
+  private readonly bodies = new Map<string, string | null>();
 
   constructor(
     private readonly partner: StudyPartner,
@@ -55,6 +61,7 @@ export class StudySession {
     private readonly rules: SparringRules,
     readonly style: CoachingStyle,
     gaps: string[],
+    private readonly readSource: SourceReader = async () => '',
   ) {
     this.round = StudyRound.over(gaps);
   }
@@ -138,21 +145,39 @@ export class StudySession {
   }
 
   private async passageFor(gap: string): Promise<Passage | null> {
-    if (this.reference.passages.length) {
-      const scored = this.reference.passages
-        .map((passage) => ({
-          passage,
-          score: scorePassage(passage.text, gap)?.score ?? 0,
-        }))
-        .sort((a, b) => b.score - a.score);
-      return scored[0]!.passage;
+    const quoted = bestQuote(this.reference.passages, gap, this.shown);
+    if (quoted) return this.show(quoted);
+    for (const source of this.reference.sources) {
+      const body = await this.source(source);
+      const found = body && scorePassage(body, gap, 70, this.shown);
+      if (found) return this.show(found.passage);
     }
+    if (this.reference.passages.length) return null;
     const quote = await this.safely(
       () => this.partner.quote(this.request(gap)),
       '',
     );
     const body = this.reference.note.body;
-    return quotedPassage(body, quote) ?? locatePassage(body, `${quote} ${gap}`);
+    const passage =
+      quotedPassage(body, quote) ?? locatePassage(body, `${quote} ${gap}`);
+    return passage && !this.shown.has(passage.text) ? this.show(passage) : null;
+  }
+
+  private show(passage: Passage): Passage {
+    this.shown.add(passage.text);
+    return passage;
+  }
+
+  private async source(path: string): Promise<string | null> {
+    if (!this.bodies.has(path)) {
+      try {
+        this.bodies.set(path, await this.readSource(path));
+      } catch (err) {
+        if (!(err instanceof VaultRefusedError)) throw err;
+        this.bodies.set(path, null);
+      }
+    }
+    return this.bodies.get(path) ?? null;
   }
 
   private async prompt(): Promise<StudyPrompt | null> {
@@ -210,6 +235,7 @@ export class Studying {
         this.deps.rules,
         await resolveStyle(note, this.deps.rules, this.deps.classifier, style),
         latest.gaps,
+        async (source) => (await this.deps.notes.readNote(source)).body,
       ),
     };
   }

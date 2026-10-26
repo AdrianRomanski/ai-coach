@@ -32,12 +32,14 @@ export interface SparringCandidate {
 export interface SparredNote {
   note: NoteDetails;
   result: SparringResult;
+  style: CoachingStyle;
 }
 
 export interface Tier1Plan {
   draft: SessionDraft;
   preview: RecordedSession;
   titles: string[];
+  styles: CoachingStyle[];
 }
 
 export interface SparringDeps {
@@ -130,7 +132,12 @@ export class Sparring {
       })),
     };
     const preview = await this.deps.sessions.record(draft, false);
-    return { draft, preview, titles: sparred.map((s) => s.note.title) };
+    return {
+      draft,
+      preview,
+      titles: sparred.map((s) => s.note.title),
+      styles: sparred.map((s) => s.style),
+    };
   }
 
   async record(plan: Tier1Plan): Promise<RecordedSession> {
@@ -139,6 +146,11 @@ export class Sparring {
       sessionId: recorded.sessionId,
       date: plan.draft.date,
       coachIds: recorded.items.map((i) => i.coachId),
+      styles: Object.fromEntries(
+        recorded.items.flatMap((item, i) =>
+          plan.styles[i] ? [[item.coachId, plan.styles[i]]] : [],
+        ),
+      ),
     });
     return recorded;
   }

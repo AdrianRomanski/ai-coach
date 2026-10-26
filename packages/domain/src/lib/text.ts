@@ -55,3 +55,14 @@ export function quotesSource(
 ): boolean {
   return longestSharedRun(text, source) >= runWords;
 }
+
+export function saidIn(
+  answers: readonly string[],
+  evidence: string,
+  minWords = 3,
+): boolean {
+  const needle = words(evidence);
+  if (needle.length < minWords) return false;
+  const joined = ` ${needle.join(' ')} `;
+  return answers.some((a) => ` ${words(a).join(' ')} `.includes(joined));
+}

@@ -13,6 +13,7 @@ const REF = {
   assertions: [],
   buzzwords: [],
   passages: [],
+  sources: [],
 };
 const CHALLENGE = 'What decides which queued callback runs next, and why?';
 const LEAK =
@@ -237,6 +238,7 @@ describe('SparringConversation', () => {
       assertions: ['Microtasks drain before the next task.'],
       buzzwords: ['event loop'],
       passages: [],
+      sources: [],
     };
     const partner = new ScriptedPartner();
     partner.challenges.push(CHALLENGE);
