@@ -2,6 +2,7 @@ import {
   ChallengeQuotesNoteError,
   NEUTRAL_PROBE,
   SparringRound,
+  closestGap,
   groundedIn,
   type Note,
   type SparringResult,
@@ -111,7 +112,7 @@ export class SparringConversation {
       next.action === 'conclude'
         ? this.round.conclude(
             next.verdict,
-            next.gaps.filter((gap) => groundedIn(this.reference.text, gap)),
+            this.groundedGaps(next.verdict, next.gaps),
             next.feedback,
           )
         : this.round.conclude(
@@ -124,6 +125,13 @@ export class SparringConversation {
 
   result(): SparringResult {
     return this.round.result();
+  }
+
+  private groundedGaps(verdict: Verdict, gaps: string[]): string[] {
+    const grounded = gaps.filter((gap) => groundedIn(this.reference.text, gap));
+    return grounded.length || verdict === 'pass'
+      ? grounded
+      : closestGap(this.reference.text, gaps);
   }
 
   private async acceptableProbe(question: string): Promise<string> {

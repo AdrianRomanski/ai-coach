@@ -230,3 +230,13 @@ export function locatePassage(
 export function groundedIn(body: string, gap: string): boolean {
   return scorePassage(body, gap) !== null;
 }
+
+export function closestGap(body: string, gaps: readonly string[]): string[] {
+  const own = new Set(words(body).map(stem));
+  let best: { gap: string; hits: number } | null = null;
+  for (const gap of gaps) {
+    const hits = queryTerms(gap).filter((t) => own.has(t)).length;
+    if (!best || hits > best.hits) best = { gap, hits };
+  }
+  return best ? [best.gap] : [];
+}

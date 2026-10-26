@@ -150,7 +150,7 @@ npm run coach -- distill
 The coach lists your books, groups your marks into a few ideas and lets you pick one. For each idea:
 
 1. You write a summary in your own words.
-2. The coach asks up to two questions about anything your marks say that your summary leaves out.
+2. The coach asks up to two questions about anything your marks say that your summary leaves out, then always asks why the idea matters (`/skip` passes).
 3. It drafts the idea's **core assertions** (the key points you'll be tested on) from _your_ summary and answers, never from the book. You keep, drop (`d`) or rewrite each one.
 4. It suggests **buzzwords** you won't be allowed to hide behind when you explain the idea.
 5. It picks **quotes** from your highlights, and the vault checks they really are in the book.

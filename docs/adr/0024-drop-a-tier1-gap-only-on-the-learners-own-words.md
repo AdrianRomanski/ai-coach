@@ -16,12 +16,13 @@ ADR-0016 dropped a gap whenever Gemma answered `yes` to "does any answer already
 
 ## Decision
 
-1. When Gemma concludes, each gap it lists goes through a separate check: one call per gap, at temperature 0, with the gap and the transcript but not the note.
+1. When Gemma concludes, each gap it lists goes through a separate check: one call per gap, at temperature 0, with the gap, the focus and the transcript but not the note.
 2. **The check replies in JSON: `covered`, and `evidence`, the learner's exact words that explain what the gap says is missing.** It is told that naming the topic is not enough: when the gap asks how or why, the answer must give that how or why.
 3. **A gap is dropped only when `covered` is true and the evidence is at least three words the learner really wrote**, compared as words without case or punctuation (`saidIn` in the domain). An unusable reply, invented evidence or `covered: false` keeps the gap.
-4. A `fail` whose every gap was dropped still becomes a `pass`, as in ADR-0016: a failure Tier 1 cannot name is not one. The judge still has the final word (ADR-0006).
-5. Gaps are written to the learner as "you", one short sentence each, and never list what the transcript already explains.
-6. The shared Ollama plumbing stays in `OllamaClient`; its JSON replies now take an optional temperature.
+4. **Only the evidence check may turn a `fail` into a `pass`.** After it, a gap that is not grounded in the note is dropped as before (ADR-0018), but when that would leave a `fail` with no gaps, the gap that shares the most words with the note is kept (`closestGap` in the domain). A `fail` whose every gap the evidence check dropped still becomes a `pass`, as in ADR-0016: a failure Tier 1 cannot name is not one. The judge still has the final word (ADR-0006).
+5. **The check also sees the focus** (the idea under test, ADR-0014), so an answer that contradicts it or only lists names does not cover a gap; a generic example ("steps: wash, rinse, dry") shows that a list is not an explanation. It copies the evidence with its typos so `saidIn` still finds it. It is not told to forgive informal answers: every such line made Gemma call weak and wrong answers covered.
+6. Gaps are written to the learner as "you", one short sentence each, and never list what the transcript already explains.
+7. The shared Ollama plumbing stays in `OllamaClient`; its JSON replies now take an optional temperature.
 
 ## Consequences
 

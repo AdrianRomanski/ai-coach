@@ -1,6 +1,7 @@
 import {
   StudyRound,
   StudyRoundError,
+  closestGap,
   groundedIn,
   bestQuote,
   locatePassage,
@@ -111,6 +112,16 @@ describe('locatePassage', () => {
     expect(
       groundedIn('Bolding helps future you.', 'Why does bolding help?'),
     ).toBe(true);
+  });
+
+  it('picks the gap closest to the note when none is grounded', () => {
+    expect(
+      closestGap(body, [
+        'You did not explain quantum lattices.',
+        'The transcript does not explain the purpose of bolding.',
+      ]),
+    ).toEqual(['The transcript does not explain the purpose of bolding.']);
+    expect(closestGap(body, [])).toEqual([]);
   });
 
   it('returns nothing when the note does not discuss it', () => {

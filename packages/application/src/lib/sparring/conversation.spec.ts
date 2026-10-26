@@ -276,4 +276,41 @@ describe('SparringConversation', () => {
       ],
     });
   });
+
+  it('keeps a fail failing with its closest gap when no gap is grounded in the note', async () => {
+    const concept = {
+      note: {
+        title: 'Event loop',
+        body: 'Microtasks drain before the next task.',
+      },
+      text: 'Microtasks drain before the next task. Timers wait for the microtask queue.',
+      assertions: ['Microtasks drain before the next task.'],
+      buzzwords: [],
+      passages: [],
+      sources: [],
+    };
+    const partner = new ScriptedPartner();
+    partner.challenges.push(CHALLENGE);
+    partner.turns.push({
+      action: 'conclude',
+      verdict: 'fail',
+      gaps: [
+        'You did not explain quantum lattices.',
+        'The transcript does not explain the purpose of timers.',
+      ],
+      feedback: 'Close.',
+    });
+    const c = new SparringConversation(
+      partner,
+      concept,
+      sparringRules(),
+      'cornell',
+    );
+    await c.start();
+    expect(await c.answer('Promises go first.')).toMatchObject({
+      kind: 'verdict',
+      verdict: 'fail',
+      gaps: ['The transcript does not explain the purpose of timers.'],
+    });
+  });
 });
