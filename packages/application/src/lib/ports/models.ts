@@ -29,6 +29,7 @@ export interface NextTurnRequest {
   style: CoachingStyle;
   focus: string;
   scope: readonly string[];
+  assertions: readonly string[];
   exchanges: readonly Exchange[];
   followUpsLeft: number;
   rejected: string[];

@@ -3,11 +3,11 @@ import type { BookProgress } from '../ports/library.js';
 import {
   InMemoryLibrary,
   InMemoryVault,
-  ScriptedDistillPartner,
+  ScriptedSynthesisPartner,
   unusable,
 } from '../../testing/in-memory.js';
 import { NotFoundError, VaultRefusedError } from '../errors.js';
-import { Distilling } from './distilling.js';
+import { Synthesizing } from './synthesizing.js';
 
 const FOLDER = '3.Resources/0.Raw/Books/Tiago Forte/Building a Second Brain';
 const CH5 = `${FOLDER}/chapters/05 Distill.md`;
@@ -62,24 +62,24 @@ function setup() {
       },
     ],
   );
-  const partner = new ScriptedDistillPartner();
-  const distilling = new Distilling({
+  const partner = new ScriptedSynthesisPartner();
+  const synthesizing = new Synthesizing({
     notes: vault,
     library,
     partner,
     rules: sparringRules(),
   });
-  return { vault, library, partner, distilling };
+  return { vault, library, partner, synthesizing };
 }
 
-describe('Distilling', () => {
+describe('Synthesizing', () => {
   it('finds a book by folder, index or title and names the known books otherwise', async () => {
-    const { distilling } = setup();
-    await expect(distilling.book(`${FOLDER}/`)).resolves.toBe(BOOK);
-    await expect(distilling.book('building a second brain')).resolves.toBe(
+    const { synthesizing } = setup();
+    await expect(synthesizing.book(`${FOLDER}/`)).resolves.toBe(BOOK);
+    await expect(synthesizing.book('building a second brain')).resolves.toBe(
       BOOK,
     );
-    await expect(distilling.book('Atomic Habits')).rejects.toThrow(
+    await expect(synthesizing.book('Atomic Habits')).rejects.toThrow(
       new NotFoundError(
         'No converted book matches "Atomic Habits"; known books: Building a Second Brain',
       ),
@@ -87,8 +87,8 @@ describe('Distilling', () => {
   });
 
   it('gathers marks from touched chapters and the reading notes, numbered', async () => {
-    const { distilling } = setup();
-    const material = await distilling.gather(BOOK);
+    const { synthesizing } = setup();
+    const material = await synthesizing.gather(BOOK);
     expect(material.map((m) => [m.id, m.kind, m.text, m.page])).toEqual([
       [1, 'summary', 'Layers make a note quick to grasp later.', null],
       [2, 'highlight', 'highlight the best of what is bolded', 98],
@@ -100,20 +100,20 @@ describe('Distilling', () => {
   });
 
   it('keeps proposed ideas that point at known material and falls back to chapters', async () => {
-    const { distilling, partner } = setup();
-    const material = await distilling.gather(BOOK);
+    const { synthesizing, partner } = setup();
+    const material = await synthesizing.gather(BOOK);
     partner.ideas = [
       { title: ' Layers ', items: [2, 3, 3, 99] },
       { title: 'Nothing real', items: [42] },
       { title: '', items: [1] },
     ];
-    const ideas = await distilling.ideas(material);
+    const ideas = await synthesizing.ideas(material);
     expect(ideas.map((i) => [i.title, i.items.map((m) => m.id)])).toEqual([
       ['Layers', [2, 3]],
     ]);
 
     partner.ideas = unusable();
-    const fallback = await distilling.ideas(material);
+    const fallback = await synthesizing.ideas(material);
     expect(fallback.map((i) => [i.title, i.items.map((m) => m.id)])).toEqual([
       ['Distill', [1, 2, 3]],
       ['Express', [4]],
@@ -122,38 +122,38 @@ describe('Distilling', () => {
   });
 
   it('asks at most two gap questions and always why the idea matters, and drafts at most six assertions', async () => {
-    const { distilling, partner } = setup();
-    const idea = (await distilling.ideas(await distilling.gather(BOOK)))[0]!;
+    const { synthesizing, partner } = setup();
+    const idea = (await synthesizing.ideas(await synthesizing.gather(BOOK)))[0]!;
     partner.questions = ['Why bold first?', ' ', 'What then?', 'And then?'];
-    await expect(distilling.questions(idea, 'My summary.')).resolves.toEqual([
+    await expect(synthesizing.questions(idea, 'My summary.')).resolves.toEqual([
       'Why bold first?',
       'What then?',
       WHY_IT_MATTERS,
     ]);
     partner.questions = unusable();
-    await expect(distilling.questions(idea, 'My summary.')).resolves.toEqual([
+    await expect(synthesizing.questions(idea, 'My summary.')).resolves.toEqual([
       WHY_IT_MATTERS,
     ]);
 
     partner.assertions = Array.from({ length: 8 }, (_, i) => `Claim ${i}.`);
     const answers = [{ question: 'Why bold first?', answer: 'To skim.' }];
     await expect(
-      distilling.assertions(idea, 'My summary.', answers),
+      synthesizing.assertions(idea, 'My summary.', answers),
     ).resolves.toHaveLength(6);
     expect(partner.seen.at(-1)).toEqual({ summary: 'My summary.', answers });
 
     partner.buzzwords = ['layers', 'layers', ' distill ', ''];
-    await expect(distilling.buzzwords(idea)).resolves.toEqual([
+    await expect(synthesizing.buzzwords(idea)).resolves.toEqual([
       'layers',
       'distill',
     ]);
   });
 
   it('quotes marked passages, and searches the book for an idea that only has notes', async () => {
-    const { distilling, library } = setup();
-    const material = await distilling.gather(BOOK);
+    const { synthesizing, library } = setup();
+    const material = await synthesizing.gather(BOOK);
     await expect(
-      distilling.passages(
+      synthesizing.passages(
         { title: 'Layers', items: material.slice(0, 3) },
         BOOK,
       ),
@@ -167,7 +167,7 @@ describe('Distilling', () => {
     ]);
 
     await expect(
-      distilling.passages({ title: 'Express', items: [material[4]!] }, BOOK),
+      synthesizing.passages({ title: 'Express', items: [material[4]!] }, BOOK),
     ).resolves.toEqual([
       {
         note: CH6,
@@ -181,7 +181,7 @@ describe('Distilling', () => {
   });
 
   it('previews without writing, then creates the concept', async () => {
-    const { distilling, library, vault } = setup();
+    const { synthesizing, library, vault } = setup();
     const draft = {
       title: 'Progressive Summarization',
       summary: 'Layers make a note quick to grasp later.',
@@ -196,7 +196,7 @@ describe('Distilling', () => {
       ],
       fromNotes: [READING],
     };
-    const preview = await distilling.preview(draft);
+    const preview = await synthesizing.preview(draft);
     expect(preview).toMatchObject({
       path: '3.Resources/Concepts/Progressive Summarization.md',
       executed: false,
@@ -204,7 +204,7 @@ describe('Distilling', () => {
     expect(preview.passages[0]).toMatchObject({ found: true });
     expect(library.created).toEqual([]);
 
-    await expect(distilling.create(draft)).resolves.toMatchObject({
+    await expect(synthesizing.create(draft)).resolves.toMatchObject({
       executed: true,
     });
     expect(
@@ -214,7 +214,7 @@ describe('Distilling', () => {
   });
 
   it('refuses an invalid draft before calling the vault, and passes on a vault refusal', async () => {
-    const { distilling, library } = setup();
+    const { synthesizing, library } = setup();
     const draft = {
       title: 'X',
       summary: 'S.',
@@ -223,9 +223,9 @@ describe('Distilling', () => {
       passages: [{ note: CH5, quote: 'not in the chapter at all' }],
       fromNotes: [],
     };
-    await expect(distilling.preview(draft)).rejects.toThrow(DomainError);
+    await expect(synthesizing.preview(draft)).rejects.toThrow(DomainError);
     await expect(
-      distilling.preview({ ...draft, assertions: ['A claim.'] }),
+      synthesizing.preview({ ...draft, assertions: ['A claim.'] }),
     ).rejects.toThrow(VaultRefusedError);
     expect(library.created).toEqual([]);
   });

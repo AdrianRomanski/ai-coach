@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from 'node:util';
-import type { BookProgress, Distilling, Idea } from '@ai-coach/application';
+import type { BookProgress, Synthesizing, Idea } from '@ai-coach/application';
 import { conceptDraft, type ConceptDraft } from '@ai-coach/domain';
 import type { Coach } from './composition.js';
-import { distill } from './distill.js';
+import { synthesize } from './synthesize.js';
 import type { Terminal } from './terminal.js';
 
 class ScriptedTerminal implements Terminal {
@@ -53,7 +53,7 @@ const IDEA: Idea = {
 };
 
 function coachWith(created: ConceptDraft[], asked: string[][]): Coach {
-  const distilling = {
+  const synthesizing = {
     books: async () => [BOOK],
     book: async () => BOOK,
     gather: async () => IDEA.items,
@@ -92,11 +92,11 @@ function coachWith(created: ConceptDraft[], asked: string[][]): Coach {
         executed: true,
       };
     },
-  } as unknown as Distilling;
-  return { distilling: () => distilling } as unknown as Coach;
+  } as unknown as Synthesizing;
+  return { synthesizing: () => synthesizing } as unknown as Coach;
 }
 
-describe('coach distill', () => {
+describe('coach synthesize', () => {
   it('walks an idea from summary to a confirmed concept note', async () => {
     const created: ConceptDraft[] = [];
     const asked: string[][] = [];
@@ -116,7 +116,7 @@ describe('coach distill', () => {
       '-',
       'y',
     ]);
-    await distill(coachWith(created, asked), term, []);
+    await synthesize(coachWith(created, asked), term, []);
 
     expect(asked).toEqual([['Each layer of a note is smaller.']]);
     expect(created).toEqual([
@@ -163,7 +163,7 @@ describe('coach distill', () => {
       '',
       'n',
     ]);
-    await distill(coachWith(created, []), term, ['Building a Second Brain']);
+    await synthesize(coachWith(created, []), term, ['Building a Second Brain']);
     expect(created).toEqual([]);
     expect(term.text()).toContain(
       'Concept note, preview: 3.Resources/Concepts/Renamed.md',
@@ -174,7 +174,7 @@ describe('coach distill', () => {
   it('stops on /quit without writing', async () => {
     const created: ConceptDraft[] = [];
     const term = new ScriptedTerminal(['1', '', '', '/quit']);
-    await distill(coachWith(created, []), term, []);
+    await synthesize(coachWith(created, []), term, []);
     expect(created).toEqual([]);
     expect(term.text()).toContain('No concept note written.');
   });

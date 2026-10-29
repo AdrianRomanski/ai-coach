@@ -1,11 +1,11 @@
-import type { DistillPartner, IdeaProposal } from '@ai-coach/application';
+import type { SynthesisPartner, IdeaProposal } from '@ai-coach/application';
 import type { Exchange, MaterialItem, SparringRules } from '@ai-coach/domain';
 import { z } from 'zod';
 import { OllamaClient, type OllamaOptions } from './ollama-client.js';
 import {
   assertionsMessages,
   buzzwordsMessages,
-  distillQuestionsMessages,
+  synthesisQuestionsMessages,
   ideasMessages,
 } from './prompts.js';
 
@@ -24,11 +24,11 @@ const Questions = z.object({
   questions: z.array(z.string().max(300)).max(6),
 });
 
-export class OllamaDistillPartner implements DistillPartner {
+export class OllamaSynthesisPartner implements SynthesisPartner {
   private readonly client: OllamaClient;
 
   constructor(options: OllamaOptions) {
-    this.client = new OllamaClient(options, 'distill partner');
+    this.client = new OllamaClient(options, 'synthesis partner');
   }
 
   async proposeIdeas(request: {
@@ -51,7 +51,7 @@ export class OllamaDistillPartner implements DistillPartner {
     max: number;
   }): Promise<string[]> {
     const reply = await this.client.json(
-      distillQuestionsMessages(request, request.max, this.client.nonce()),
+      synthesisQuestionsMessages(request, request.max, this.client.nonce()),
       Questions,
     );
     return reply.questions

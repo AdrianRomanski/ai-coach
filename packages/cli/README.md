@@ -16,7 +16,7 @@ npm run coach -- <command> [options]
 
 ```sh
 npm run coach                       # what's due today
-npm run coach -- distill            # turn your book marks into concept notes
+npm run coach -- synthesize         # turn your book marks into concept notes
 npm run coach -- spar               # spar what's due
 npm run coach -- spar --style devil # …in devil's-advocate style
 npm run coach -- judge              # judge waiting sessions (online)
@@ -57,7 +57,7 @@ Mistakes in the file are reported clearly, with the setting that's wrong.
 | `config.ts`                               | Finds and checks the configuration and applies environment variables.                           |
 | `composition.ts`                          | Plugs the real adapters into the use cases. The one place where everything meets.               |
 | `commands.ts`                             | Each command's conversation: due, list, spar, judge, study, file, capture, archive, init, view. |
-| `distill.ts`                              | The `distill` conversation.                                                                     |
+| `synthesize.ts`                           | The `synthesize` conversation.                                                                  |
 | `terminal.ts`                             | Reading answers, confirmations and colours.                                                     |
 
 To add a command, write its conversation in `commands.ts` (or its own file), register it in `cli.ts`, and add a line to the help text.

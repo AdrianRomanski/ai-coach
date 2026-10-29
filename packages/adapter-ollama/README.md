@@ -1,16 +1,16 @@
 # @ai-coach/adapter-ollama
 
-**The local sparring partner.** Everything the coach asks you during sparring, studying and distilling comes from a Gemma model running on your own machine through [Ollama](https://ollama.com). Your notes never leave the computer.
+**The local sparring partner.** Everything the coach asks you during sparring, studying and synthesizing comes from a Gemma model running on your own machine through [Ollama](https://ollama.com). Your notes never leave the computer.
 
 ## What it does
 
-| Class                   | Its job                                                                                                                                                 | Used by          |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `OllamaSparringPartner` | Writes the opening challenge and the follow-up questions, and decides the Tier 1 verdict. Each gap it raises is checked against what you actually said. | `coach spar`     |
-| `OllamaStudyPartner`    | Gives a guiding question per gap, a clue when you ask for help, and checks whether your new explanation closes the gap.                                 | `coach study`    |
-| `OllamaStyleClassifier` | Reads a note and picks the coaching style that suits it, when you haven't chosen one.                                                                   | spar, study      |
-| `OllamaDistillPartner`  | Groups your marks into ideas, asks gap questions, drafts core assertions from your words, and suggests buzzwords.                                       | `coach distill`  |
-| `OllamaClient`          | The shared connection to Ollama, with retries and checks on what comes back.                                                                            | all of the above |
+| Class                    | Its job                                                                                                                                                 | Used by            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `OllamaSparringPartner`  | Writes the opening challenge and the follow-up questions, and decides the Tier 1 verdict. Each gap it raises is checked against what you actually said. | `coach spar`       |
+| `OllamaStudyPartner`     | Gives a guiding question per gap, a clue when you ask for help, and checks whether your new explanation closes the gap.                                 | `coach study`      |
+| `OllamaStyleClassifier`  | Reads a note and picks the coaching style that suits it, when you haven't chosen one.                                                                   | spar, study        |
+| `OllamaSynthesisPartner` | Groups your marks into ideas, asks gap questions, drafts core assertions from your words, and suggests buzzwords.                                       | `coach synthesize` |
+| `OllamaClient`           | The shared connection to Ollama, with retries and checks on what comes back.                                                                            | all of the above   |
 
 All the prompts are in `prompts.ts`, so tuning how the coach talks starts there.
 

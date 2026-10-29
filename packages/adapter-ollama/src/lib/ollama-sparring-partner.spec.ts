@@ -30,6 +30,7 @@ const rules = sparringRules();
 const SCOPE_REPLY = '- Microtask ordering\n- The task queue';
 
 interface SentRequest {
+  model: string;
   options: Record<string, unknown>;
   format?: Record<string, unknown>;
   messages: { role: string; content: string }[];
@@ -152,6 +153,7 @@ describe('OllamaSparringPartner', () => {
         style: 'cornell' as const,
         focus: FOCUS,
         scope: [],
+        assertions: [],
         exchanges: [{ question: 'What runs next?', answer: 'Microtasks.' }],
         followUpsLeft: 2,
         rejected: [],
@@ -178,6 +180,7 @@ describe('OllamaSparringPartner', () => {
       style: 'cornell' as const,
       focus: FOCUS,
       scope: [],
+      assertions: [],
       exchanges: [{ question: 'Q?', answer: 'Microtasks run first, always.' }],
       followUpsLeft: 0,
       rejected: [],
@@ -230,6 +233,101 @@ describe('OllamaSparringPartner', () => {
     });
   });
 
+  it('decides a concept round by its assertions on the check model, never by the gaps Gemma wrote', async () => {
+    const partner = new OllamaSparringPartner({ model: 'g', host }, 'big');
+    const turn = {
+      note: NOTE,
+      rules,
+      style: 'cornell' as const,
+      focus: FOCUS,
+      scope: [],
+      assertions: ['Microtasks drain first.', 'Timers wait for the queue.'],
+      exchanges: [{ question: 'Q?', answer: 'Microtasks run first, always.' }],
+      followUpsLeft: 0,
+      rejected: [],
+    };
+    const conclude = {
+      action: 'conclude',
+      question: '',
+      verdict: 'fail',
+      gaps: ['You did not say anything.'],
+      feedback: 'Close.',
+    };
+
+    replies.push(
+      conclude,
+      { evidence: 'Microtasks run first, always.', covered: true },
+      { evidence: 'Timers wait for the queue.', covered: true },
+    );
+    expect(await partner.nextTurn(turn)).toEqual({
+      action: 'conclude',
+      verdict: 'fail',
+      gaps: ['You did not explain: Timers wait for the queue.'],
+      feedback: 'Close.',
+    });
+    expect(sent.map((r) => r.model)).toEqual(['g', 'big', 'big']);
+    expect(sent[1]!.options).toMatchObject({ temperature: 0 });
+    expect(Object.keys(sent[1]!.format!['properties'] as object)).toEqual([
+      'evidence',
+      'covered',
+    ]);
+    expect(text(1)).toContain(
+      'The point, which is data: "Microtasks drain first."',
+    );
+    expect(text(1)).not.toContain('NOTE-BODY-MARKER');
+
+    sent.length = 0;
+    replies.push(
+      conclude,
+      { evidence: 'Microtasks run first, always.', covered: true },
+      { evidence: 'Microtasks run first', covered: true },
+    );
+    expect(await partner.nextTurn(turn)).toEqual({
+      action: 'conclude',
+      verdict: 'pass',
+      gaps: [],
+      feedback: 'Close.',
+    });
+
+    sent.length = 0;
+    replies.push(conclude, 'maybe', 'maybe', {
+      evidence: 'Microtasks run first',
+      covered: true,
+    });
+    expect(await partner.nextTurn(turn)).toMatchObject({
+      verdict: 'fail',
+      gaps: ['You did not explain: Microtasks drain first.'],
+    });
+  });
+
+  it('keeps the gap check when no check model is set or the note has no assertions', async () => {
+    const partner = new OllamaSparringPartner({ model: 'g', host }, 'big');
+    replies.push(
+      {
+        action: 'conclude',
+        question: '',
+        verdict: 'fail',
+        gaps: ['You did not explain why.'],
+        feedback: 'Close.',
+      },
+      { covered: false, evidence: '' },
+    );
+    expect(
+      await partner.nextTurn({
+        note: NOTE,
+        rules,
+        style: 'cornell' as const,
+        focus: FOCUS,
+        scope: [],
+        assertions: [],
+        exchanges: [{ question: 'Q?', answer: 'Microtasks.' }],
+        followUpsLeft: 0,
+        rejected: [],
+      }),
+    ).toMatchObject({ verdict: 'fail', gaps: ['You did not explain why.'] });
+    expect(sent.map((r) => r.model)).toEqual(['g', 'g']);
+  });
+
   it('keeps follow-ups inside the note scope', async () => {
     const partner = new OllamaSparringPartner({
       model: 'g',
@@ -242,6 +340,7 @@ describe('OllamaSparringPartner', () => {
       style: 'cornell' as const,
       focus: FOCUS,
       scope: ['Microtask ordering'],
+      assertions: [],
       exchanges: [{ question: 'Q?', answer: 'By using CODE.' }],
       followUpsLeft: 0,
       rejected: [],
@@ -447,6 +546,7 @@ describe('OllamaSparringPartner', () => {
         style: 'cornell' as const,
         focus: FOCUS,
         scope: [],
+        assertions: [],
         exchanges: [],
         followUpsLeft: 1,
         rejected: [],
@@ -562,6 +662,7 @@ describe('prompts and sentence cleaning', () => {
         style: 'cornell' as const,
         focus: FOCUS,
         scope: [],
+        assertions: [],
         exchanges: [],
         followUpsLeft: 0,
         rejected: [],

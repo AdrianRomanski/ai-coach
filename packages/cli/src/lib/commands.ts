@@ -189,6 +189,7 @@ export async function spar(
       const input = await readAnswer(term);
       if (input.kind === 'quit') break notes;
       if (input.kind === 'skip') continue notes;
+      term.print(paint('dim', '       thinking…'));
       showTurn(term, await conversation.answer(input.text));
     }
     done.push({

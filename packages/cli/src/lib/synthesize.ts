@@ -2,7 +2,7 @@ import {
   VaultRefusedError,
   type BookProgress,
   type ConceptCheck,
-  type Distilling,
+  type Synthesizing,
   type Idea,
 } from '@ai-coach/application';
 import {
@@ -31,10 +31,10 @@ function numbers(raw: string, count: number): number[] {
 }
 
 async function chooseBook(
-  distilling: Distilling,
+  synthesizing: Synthesizing,
   term: Terminal,
 ): Promise<BookProgress | null> {
-  const books = await distilling.books();
+  const books = await synthesizing.books();
   if (!books.length) {
     term.print(
       'No converted books yet: convert a PDF under 3.Resources/0.Raw first.',
@@ -160,8 +160,8 @@ function showCheck(
     term.print(paint('red', `  collision: ${c}`));
 }
 
-async function distillIdea(
-  distilling: Distilling,
+async function synthesizeIdea(
+  synthesizing: Synthesizing,
   term: Terminal,
   book: BookProgress,
   idea: Idea,
@@ -183,7 +183,7 @@ async function distillIdea(
   if (!summary) return false;
 
   const answers: Exchange[] = [];
-  for (const question of await distilling.questions(
+  for (const question of await synthesizing.questions(
     { ...idea, title },
     summary,
   )) {
@@ -195,7 +195,7 @@ async function distillIdea(
   term.print(paint('dim', 'Drafting core assertions from your words…'));
   const assertions = await reviewAssertions(
     term,
-    await distilling.assertions({ ...idea, title }, summary, answers),
+    await synthesizing.assertions({ ...idea, title }, summary, answers),
   );
   if (!assertions.length) {
     term.print(
@@ -208,14 +208,14 @@ async function distillIdea(
   }
   const buzzwords = await reviewBuzzwords(
     term,
-    await distilling.buzzwords(idea),
+    await synthesizing.buzzwords(idea),
   );
-  const passages = await distilling.passages(idea, book);
+  const passages = await synthesizing.passages(idea, book);
   if (!passages.length) {
     term.print(
       paint(
         'yellow',
-        'No passage of the book to quote for this idea: highlight or bold it in the chapter, then run distill again.',
+        'No passage of the book to quote for this idea: highlight or bold it in the chapter, then run synthesize again.',
       ),
     );
     return false;
@@ -225,7 +225,7 @@ async function distillIdea(
   ];
 
   try {
-    const draft = distilling.draft({
+    const draft = synthesizing.draft({
       title,
       summary,
       assertions,
@@ -233,7 +233,7 @@ async function distillIdea(
       passages,
       fromNotes,
     });
-    const check = await distilling.preview(draft);
+    const check = await synthesizing.preview(draft);
     showCheck(term, draft, check);
     if (check.collisions.length) {
       term.print(
@@ -245,7 +245,7 @@ async function distillIdea(
       term.print('Nothing written.');
       return false;
     }
-    const done = await distilling.create(draft);
+    const done = await synthesizing.create(draft);
     term.print(
       done.executed
         ? paint('green', `Written: ${done.path}`)
@@ -261,17 +261,17 @@ async function distillIdea(
   }
 }
 
-export async function distill(
+export async function synthesize(
   coach: Coach,
   term: Terminal,
   args: string[],
 ): Promise<void> {
-  const distilling = coach.distilling();
+  const synthesizing = coach.synthesizing();
   const book = args.length
-    ? await distilling.book(args.join(' '))
-    : await chooseBook(distilling, term);
+    ? await synthesizing.book(args.join(' '))
+    : await chooseBook(synthesizing, term);
   if (!book) return;
-  const material = await distilling.gather(book);
+  const material = await synthesizing.gather(book);
   if (!material.length) {
     term.print(
       `Nothing marked in ${book.title} yet: bold or highlight passages, or write a chapter summary, then come back.`,
@@ -284,20 +284,20 @@ export async function distill(
       `${book.title}: ${counts(material)}. Grouping them into ideas…`,
     ),
   );
-  const ideas = await distilling.ideas(material);
+  const ideas = await synthesizing.ideas(material);
   ideas.forEach((idea, i) =>
     term.print(
       `${String(i + 1).padStart(3)}. ${idea.title} ${paint('dim', `(${idea.items.length} item${idea.items.length === 1 ? '' : 's'}: ${[...new Set(idea.items.map(where))].slice(0, 3).join('; ')})`)}`,
     ),
   );
   const raw = await term.ask(
-    'Distill which ideas? Numbers separated by spaces, Enter for all: ',
+    'Synthesize which ideas? Numbers separated by spaces, Enter for all: ',
   );
   if (raw === null) return;
   let written = 0;
   try {
     for (const n of numbers(raw, ideas.length)) {
-      if (await distillIdea(distilling, term, book, ideas[n - 1]!)) written++;
+      if (await synthesizeIdea(synthesizing, term, book, ideas[n - 1]!)) written++;
     }
   } catch (err) {
     if (!(err instanceof Quit)) throw err;

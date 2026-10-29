@@ -29,20 +29,20 @@ It works on your own notes in an [Obsidian](https://obsidian.md) vault, and most
 Learning with ai-coach follows one loop:
 
 ```
-  read ──► mark ──► distill ──► spar ──► judge ──► study
-                                  ▲                   │
-                                  └──── review ◄──────┘
+  read ──► distill ──► synthesize ──► spar ──► judge ──► study
+                                        ▲                   │
+                                        └──── review ◄──────┘
 ```
 
-| Step        | What you do                                                                                    | Where                                  |
-| ----------- | ---------------------------------------------------------------------------------------------- | -------------------------------------- |
-| **Read**    | Read a book that has been converted into your vault, one note per chapter.                     | Obsidian                               |
-| **Mark**    | Bold what matters, highlight the best of it, and write a short summary of each chapter.        | Obsidian, or `coach view`              |
-| **Distill** | Turn your marks into _concept notes_: one idea each, in your words, backed by quotes.          | `coach distill`                        |
-| **Spar**    | Explain a concept to the coach. It asks follow-up questions and gives a verdict.               | `coach spar` (offline)                 |
-| **Judge**   | A stronger model checks your answers for gaps and hand-waving, without ever seeing your notes. | `coach judge` (online)                 |
-| **Study**   | Work through what you missed, with hints and the author's own words.                           | `coach study`, or offered after a fail |
-| **Review**  | Come back when the idea is due. The better you know it, the longer the gap.                    | `coach due`                            |
+| Step           | What you do                                                                                    | Where                                  |
+| -------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Read**       | Read a book that has been converted into your vault, one note per chapter.                     | Obsidian                               |
+| **Distill**    | Bold what matters, highlight the best of it, and write a short summary of each chapter.        | Obsidian, or `coach view`              |
+| **Synthesize** | Turn your marks into _concept notes_: one idea each, in your words, backed by quotes.          | `coach synthesize`                     |
+| **Spar**       | Explain a concept to the coach. It asks follow-up questions and gives a verdict.               | `coach spar` (offline)                 |
+| **Judge**      | A stronger model checks your answers for gaps and hand-waving, without ever seeing your notes. | `coach judge` (online)                 |
+| **Study**      | Work through what you missed, with hints and the author's own words.                           | `coach study`, or offered after a fail |
+| **Review**     | Come back when the idea is due. The better you know it, the longer the gap.                    | `coach due`                            |
 
 Two models do the work:
 
@@ -79,7 +79,7 @@ Your vault uses five top-level folders:
 2.Areas/        ongoing responsibilities
 3.Resources/    what you're learning: this is where sparring happens
    0.Raw/         converted books and other source material (read and quote it, never spar it)
-   Concepts/      the concept notes you distill
+   Concepts/      the concept notes you synthesize
 4.Archive/      finished projects
 ```
 
@@ -134,17 +134,17 @@ You should see what's due for review and which notes have never been sparred.
 
 Say you've read _Building a Second Brain_, which kb-template has converted into chapter notes under `3.Resources/0.Raw/Books/…`.
 
-**Mark it.** In Obsidian (or in the graph view, `npm run coach -- view`), bold the sentences that matter, highlight the best of them with `==…==`, and add a summary of each chapter in your own words:
+**Distill it.** In Obsidian (or in the graph view, `npm run coach -- view`), bold the sentences that matter, highlight the best of them with `==…==`, and add a summary of each chapter in your own words:
 
 ```markdown
 > [!summary]
 > Notes only pay off if future me can find their point fast, so I distill them in layers.
 ```
 
-**Distill it.**
+**Synthesize it.**
 
 ```sh
-npm run coach -- distill
+npm run coach -- synthesize
 ```
 
 The coach lists your books, groups your marks into a few ideas and lets you pick one. For each idea:
@@ -194,7 +194,7 @@ Run any command as `npm run coach -- <command>`.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `due`                  | What's due for review today, and what has never been sparred. The default when you type no command.                                        |
 | `list`                 | Every note in Resources with how well you know it (unsparred, attempted, Tier 1 passed, Tier 2 passed).                                    |
-| `distill [book]`       | Turn your marks and reading notes on a book into concept notes. Without a book, you pick one from a list.                                  |
+| `synthesize [book]`    | Turn your marks and reading notes on a book into concept notes. Without a book, you pick one from a list.                                  |
 | `spar [note …]`        | Tier 1, offline. Spar the notes that are due, or the notes you name (by path or coach id).                                                 |
 | `judge [session …]`    | Tier 2, online. Judge the sparring sessions waiting for it.                                                                                |
 | `study <note>`         | Work through the gaps from a note's latest failed session.                                                                                 |
@@ -248,7 +248,7 @@ The style is chosen in this order:
 
 ## Privacy: what leaves your machine
 
-- **Sparring, studying and distilling never leave your machine.** Gemma runs locally, and ai-coach refuses to talk to an Ollama server that isn't on your computer.
+- **Sparring, studying and synthesizing never leave your machine.** Gemma runs locally, and ai-coach refuses to talk to an Ollama server that isn't on your computer.
 - **Only `coach judge` goes online.** For each question it sends the question and your answer, plus the idea's core assertions. To keep the assertions private too, set `"judge": { "includeAssertions": false }`.
 - **Your notes are never sent anywhere**, not even to the judge.
 - **Your vault is only touched through kb-template's vault server**, never directly, and only after you confirm a preview.
@@ -274,6 +274,7 @@ Everything is optional except the Gemma model. Here is a full example. Apart fro
 
   "ollama": {
     "model": "gemma3:latest",
+    "checkModel": "gemma3:12b",
     "host": "http://127.0.0.1:11434",
     "contextWindow": 16384
   },
@@ -303,22 +304,23 @@ Everything is optional except the Gemma model. Here is a full example. Apart fro
 }
 ```
 
-| Setting                     | Meaning                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------- |
-| `vault`                     | Your Obsidian vault.                                                                  |
-| `docsMcpBin`                | kb-template's `docs-mcp.js`.                                                          |
-| `stateDir`                  | Where ai-coach keeps its own small state: the list of sessions waiting for the judge. |
-| `ollama.model`              | The Gemma model, as listed by `ollama list`. **Required.**                            |
-| `ollama.contextWindow`      | How much text Gemma can read at once. Raise it if a long chapter is refused.          |
-| `judge.fallbackModel`       | Used when the main judge model is busy or unavailable.                                |
-| `judge.thinkingLevel`       | `MEDIUM` or `HIGH`: how hard the judge thinks.                                        |
-| `judge.includeAssertions`   | Whether the judge may see the idea's core assertions.                                 |
-| `sparring.maxFollowUps`     | How many follow-up questions before the verdict.                                      |
-| `sparring.maxRephrases`     | How many times you can be asked to rephrase.                                          |
-| `sparring.verbatimRunWords` | Copying this many words in a row from the note counts as reciting, not explaining.    |
-| `sparring.buzzwords`        | Words you're not allowed to hide behind (replaces the built-in list).                 |
-| `sparring.language`         | The language the coach speaks. Defaults to the language of the note.                  |
-| `ladder`                    | The [review schedule](#the-review-schedule), in days.                                 |
+| Setting                     | Meaning                                                                                                                                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vault`                     | Your Obsidian vault.                                                                                                                                                                                                                          |
+| `docsMcpBin`                | kb-template's `docs-mcp.js`.                                                                                                                                                                                                                  |
+| `stateDir`                  | Where ai-coach keeps its own small state: the list of sessions waiting for the judge.                                                                                                                                                         |
+| `ollama.model`              | The Gemma model, as listed by `ollama list`. **Required.**                                                                                                                                                                                    |
+| `ollama.checkModel`         | A larger Gemma model, e.g. `gemma3:12b`, that checks your answers against each core assertion of a concept note at the end of a round. Slower, but much fairer than the default model. Leave it out to let the default model judge the round. |
+| `ollama.contextWindow`      | How much text Gemma can read at once. Raise it if a long chapter is refused.                                                                                                                                                                  |
+| `judge.fallbackModel`       | Used when the main judge model is busy or unavailable.                                                                                                                                                                                        |
+| `judge.thinkingLevel`       | `MEDIUM` or `HIGH`: how hard the judge thinks.                                                                                                                                                                                                |
+| `judge.includeAssertions`   | Whether the judge may see the idea's core assertions.                                                                                                                                                                                         |
+| `sparring.maxFollowUps`     | How many follow-up questions before the verdict.                                                                                                                                                                                              |
+| `sparring.maxRephrases`     | How many times you can be asked to rephrase.                                                                                                                                                                                                  |
+| `sparring.verbatimRunWords` | Copying this many words in a row from the note counts as reciting, not explaining.                                                                                                                                                            |
+| `sparring.buzzwords`        | Words you're not allowed to hide behind (replaces the built-in list).                                                                                                                                                                         |
+| `sparring.language`         | The language the coach speaks. Defaults to the language of the note.                                                                                                                                                                          |
+| `ladder`                    | The [review schedule](#the-review-schedule), in days.                                                                                                                                                                                         |
 
 Environment variables override the file. Put them in `.env` or your shell:
 
@@ -328,6 +330,7 @@ Environment variables override the file. Put them in `.env` or your shell:
 | `DOCS_MCP_VAULT`              | `vault`                |
 | `DOCS_MCP_BIN`                | `docsMcpBin`           |
 | `OLLAMA_MODEL`                | `ollama.model`         |
+| `OLLAMA_CHECK_MODEL`          | `ollama.checkModel`    |
 | `OLLAMA_HOST`                 | `ollama.host`          |
 | `OLLAMA_NUM_CTX`              | `ollama.contextWindow` |
 | `GEMINI_JUDGE_MODEL`          | `judge.model`          |
@@ -346,8 +349,8 @@ Environment variables override the file. Put them in `.env` or your shell:
 | `This note needs about N tokens, but Gemma's context window is …` | Raise `ollama.contextWindow`, or spar a shorter note.                                                 |
 | `Could not start the vault server`                                | Check `docsMcpBin` points at kb-template's `docs-mcp.js`, and that kb-template is built.              |
 | `only notes under 3.Resources can be sparred`                     | File the note into Resources first: `coach file <note> 3.Resources/<topic>`.                          |
-| `… is raw material: spar a concept note that quotes it instead`   | Book chapters are source material. Run `coach distill` to make a concept note from them.              |
-| `Nothing marked in … yet`                                         | Bold or highlight some passages, or write a chapter summary, then run `distill` again.                |
+| `… is raw material: spar a concept note that quotes it instead`   | Book chapters are source material. Run `coach synthesize` to make a concept note from them.           |
+| `Nothing marked in … yet`                                         | Bold or highlight some passages, or write a chapter summary, then run `synthesize` again.             |
 | `A concept note needs at least one core assertion`                | Keep at least one of the drafted assertions, or type your own.                                        |
 | The judge fails with a quota or server error                      | Try again later, or set `judge.fallbackModel`. Your sessions stay queued until judged.                |
 
@@ -360,7 +363,7 @@ ai-coach is built in layers, so the rules of learning don't depend on any partic
 | Package                                                         | In one line                                                                  |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [`domain`](packages/domain/README.md)                           | The rules of learning: rounds, verdicts, the review schedule. No I/O at all. |
-| [`application`](packages/application/README.md)                 | The things you can do (spar, judge, study, distill) and what they need.      |
+| [`application`](packages/application/README.md)                 | The things you can do (spar, judge, study, synthesize) and what they need.   |
 | [`adapter-ollama`](packages/adapter-ollama/README.md)           | The local sparring partner, powered by Gemma.                                |
 | [`adapter-gemini`](packages/adapter-gemini/README.md)           | The online judge, powered by Gemini.                                         |
 | [`adapter-vault-mcp`](packages/adapter-vault-mcp/README.md)     | Talks to your vault through kb-template's server.                            |

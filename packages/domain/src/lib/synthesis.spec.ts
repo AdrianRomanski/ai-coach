@@ -3,7 +3,7 @@ import {
   extractMarks,
   quotesFrom,
   type MaterialItem,
-} from './distill.js';
+} from './synthesis.js';
 import { DomainError } from './errors.js';
 
 const CHAPTER = [

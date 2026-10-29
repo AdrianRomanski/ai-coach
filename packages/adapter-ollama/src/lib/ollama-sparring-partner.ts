@@ -15,6 +15,7 @@ import {
   type OllamaOptions,
 } from './ollama-client.js';
 import {
+  assertionCheckMessages,
   challengeMessages,
   focusMessages,
   gapCheckMessages,
@@ -31,6 +32,11 @@ const GapCheck = z.object({
   evidence: z.string().max(MAX_SENTENCE * 2),
 });
 
+const AssertionCheck = z.object({
+  evidence: z.string().max(MAX_SENTENCE * 2),
+  covered: z.boolean(),
+});
+
 const NextTurnReply = z.object({
   action: z.enum(['probe', 'conclude']),
   question: z.string().max(MAX_SENTENCE),
@@ -41,9 +47,13 @@ const NextTurnReply = z.object({
 
 export class OllamaSparringPartner implements SparringPartner {
   private readonly client: OllamaClient;
+  private readonly checker: OllamaClient | null;
 
-  constructor(options: OllamaOptions) {
+  constructor(options: OllamaOptions, checkModel?: string) {
     this.client = new OllamaClient(options, 'sparring partner');
+    this.checker = checkModel
+      ? new OllamaClient({ ...options, model: checkModel }, 'assertion check')
+      : null;
   }
 
   async openingChallenge(request: ChallengeRequest): Promise<OpeningChallenge> {
@@ -76,6 +86,15 @@ export class OllamaSparringPartner implements SparringPartner {
     );
     if (reply.action === 'probe') {
       return { action: 'probe', question: reply.question };
+    }
+    if (this.checker && request.assertions.length) {
+      const missed = await this.missedAssertions(this.checker, request);
+      return {
+        action: 'conclude',
+        verdict: missed.length ? 'fail' : 'pass',
+        gaps: missed.map((assertion) => `You did not explain: ${assertion}`),
+        feedback: reply.feedback,
+      };
     }
     const gaps = await this.uncoveredGaps(request, reply.gaps);
     return {
@@ -114,6 +133,28 @@ export class OllamaSparringPartner implements SparringPartner {
       if (err instanceof UnusableReplyError) return false;
       throw err;
     }
+  }
+
+  private async missedAssertions(
+    checker: OllamaClient,
+    request: NextTurnRequest,
+  ): Promise<string[]> {
+    const answers = request.exchanges.map((e) => e.answer);
+    const missed: string[] = [];
+    for (const assertion of request.assertions) {
+      try {
+        const check = await checker.json(
+          assertionCheckMessages(request, assertion, checker.nonce()),
+          AssertionCheck,
+          { temperature: 0 },
+        );
+        if (check.covered && saidIn(answers, check.evidence)) continue;
+      } catch (err) {
+        if (!(err instanceof UnusableReplyError)) throw err;
+      }
+      missed.push(assertion);
+    }
+    return missed;
   }
 
   private async focus(request: ChallengeRequest): Promise<string> {

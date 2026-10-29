@@ -23,6 +23,7 @@ const ConfigFile = z.strictObject({
   ollama: z
     .strictObject({
       model: z.string().min(1).optional(),
+      checkModel: z.string().min(1).optional(),
       host: z.string().min(1).optional(),
       contextWindow: z.number().int().min(2048).optional(),
     })
@@ -62,7 +63,12 @@ export interface CoachConfig {
   vault: string | undefined;
   docsMcpBin: string;
   stateDir: string;
-  ollama: { model: string | undefined; host: string; contextWindow: number };
+  ollama: {
+    model: string | undefined;
+    checkModel: string | undefined;
+    host: string;
+    contextWindow: number;
+  };
   judge: {
     model: string | undefined;
     fallbackModel: string | undefined;
@@ -180,6 +186,7 @@ export function loadConfig(options: LoadConfigOptions = {}): CoachConfig {
       ),
     ollama: {
       model: fromEnv('OLLAMA_MODEL') ?? file.ollama?.model,
+      checkModel: fromEnv('OLLAMA_CHECK_MODEL') ?? file.ollama?.checkModel,
       host: fromEnv('OLLAMA_HOST') ?? file.ollama?.host ?? DEFAULT_OLLAMA_HOST,
       contextWindow:
         contextWindow(fromEnv('OLLAMA_NUM_CTX')) ??

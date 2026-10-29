@@ -56,7 +56,7 @@ export interface IdeaProposal {
   items: number[];
 }
 
-export interface DistillPartner {
+export interface SynthesisPartner {
   proposeIdeas(request: {
     rules: SparringRules;
     material: readonly MaterialItem[];

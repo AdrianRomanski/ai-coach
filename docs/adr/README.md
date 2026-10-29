@@ -30,3 +30,5 @@ Every important or major change to ai-coach ships with an ADR in this folder; AD
 | [0024](0024-drop-a-tier1-gap-only-on-the-learners-own-words.md)                   | Drop a Tier 1 gap only when the learner's own words cover it                                | proposed               |
 | [0025](0025-judge-each-answer-by-the-style-it-was-sparred-in.md)                  | Judge each answer by the bar of the style it was sparred in                                 | proposed               |
 | [0026](0026-quote-whole-marked-sentences-and-ask-why-an-idea-matters.md)          | Quote whole marked sentences, ask why an idea matters, and never repeat a study quote       | proposed               |
+| [0027](0027-check-each-core-assertion-on-a-larger-local-model.md)                 | Decide a concept round by checking each core assertion on a larger local model              | proposed               |
+| [0028](0028-call-making-concept-notes-synthesis.md)                               | Call making concept notes synthesis, and keep distillation for marking                      | proposed               |

@@ -6,26 +6,26 @@ Each command you type in the terminal maps to one _use case_ here. A use case de
 
 ## The use cases
 
-| Use case       | What it does                                                                                                                                                   | Behind the command                         |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Review**     | Lists what's due today, what was never sparred, what's waiting for the judge, and what's waiting to be filed.                                                  | `coach due`, `coach list`                  |
-| **Sparring**   | Picks the notes to spar, runs each conversation, plans the session with next review dates, records it after you confirm, and queues it for the judge.          | `coach spar`                               |
-| **Judging**    | Takes queued sessions, builds the privacy-checked payload, asks the judge, applies the verdict rule and records the result.                                    | `coach judge`                              |
-| **Studying**   | Walks the gaps of a note's latest failed session with hints, the author's passage and a limited number of tries. Can keep your explanations as a new note.     | `coach study`                              |
-| **Distilling** | Finds a book, gathers your marks and reading notes, proposes ideas, asks gap questions, drafts assertions and quotes, then previews and writes a concept note. | `coach distill`                            |
-| **Filing**     | Previews and applies moves in the vault: file, capture, archive, set up PARA.                                                                                  | `coach file`, `capture`, `archive`, `init` |
+| Use case         | What it does                                                                                                                                                   | Behind the command                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Review**       | Lists what's due today, what was never sparred, what's waiting for the judge, and what's waiting to be filed.                                                  | `coach due`, `coach list`                  |
+| **Sparring**     | Picks the notes to spar, runs each conversation, plans the session with next review dates, records it after you confirm, and queues it for the judge.          | `coach spar`                               |
+| **Judging**      | Takes queued sessions, builds the privacy-checked payload, asks the judge, applies the verdict rule and records the result.                                    | `coach judge`                              |
+| **Studying**     | Walks the gaps of a note's latest failed session with hints, the author's passage and a limited number of tries. Can keep your explanations as a new note.     | `coach study`                              |
+| **Synthesizing** | Finds a book, gathers your marks and reading notes, proposes ideas, asks gap questions, drafts assertions and quotes, then previews and writes a concept note. | `coach synthesize`                         |
+| **Filing**       | Previews and applies moves in the vault: file, capture, archive, set up PARA.                                                                                  | `coach file`, `capture`, `archive`, `init` |
 
 ## The ports
 
 These are the interfaces an adapter has to provide:
 
-| Port                                                                   | Provided by           | In plain words                               |
-| ---------------------------------------------------------------------- | --------------------- | -------------------------------------------- |
-| `NotesRepository`, `SessionLog`, `VaultFiling`                         | `adapter-vault-mcp`   | read notes, record sessions, move notes      |
-| `Library`                                                              | `adapter-vault-mcp`   | books, passage search, writing concept notes |
-| `SparringPartner`, `StudyPartner`, `StyleClassifier`, `DistillPartner` | `adapter-ollama`      | the local model, in its different jobs       |
-| `Judge`                                                                | `adapter-gemini`      | the online judge                             |
-| `PendingJudgements`, `Clock`                                           | `adapter-local-state` | the judge's queue, and today's date          |
+| Port                                                                     | Provided by           | In plain words                               |
+| ------------------------------------------------------------------------ | --------------------- | -------------------------------------------- |
+| `NotesRepository`, `SessionLog`, `VaultFiling`                           | `adapter-vault-mcp`   | read notes, record sessions, move notes      |
+| `Library`                                                                | `adapter-vault-mcp`   | books, passage search, writing concept notes |
+| `SparringPartner`, `StudyPartner`, `StyleClassifier`, `SynthesisPartner` | `adapter-ollama`      | the local model, in its different jobs       |
+| `Judge`                                                                  | `adapter-gemini`      | the online judge                             |
+| `PendingJudgements`, `Clock`                                             | `adapter-local-state` | the judge's queue, and today's date          |
 
 ## Using it
 

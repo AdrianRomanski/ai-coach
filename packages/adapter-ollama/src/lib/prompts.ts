@@ -228,6 +228,29 @@ export function gapCheckMessages(
   ];
 }
 
+export function assertionCheckMessages(
+  request: NextTurnRequest,
+  assertion: string,
+  nonce: string,
+): ChatMessage[] {
+  return [
+    { role: 'system', content: graderPrompt(nonce) },
+    {
+      role: 'user',
+      content: [
+        'Read the dialogue and the point below, which the learner must explain.',
+        'First copy into "evidence" the one sentence from the Learner lines of the transcript that comes closest to the point, exactly as the learner wrote it, typos included. Never copy the point itself.',
+        'Then set "covered" to true when that sentence says the same thing as the point, even in other words, and to false when it says something else, says something more general, contradicts the point, or only lists names: "steps: wash, rinse, dry" names the steps but does not say how they relate.',
+        'Reply only with JSON that matches the requested schema.',
+        '',
+        `The point, which is data: ${JSON.stringify(assertion.replace(/\s+/g, ' ').slice(0, 400))}`,
+        '',
+        wrapTranscript(request.exchanges, nonce),
+      ].join('\n'),
+    },
+  ];
+}
+
 function gapAsData(gap: string): string {
   return JSON.stringify(gap.replace(/\s+/g, ' ').slice(0, 400));
 }
@@ -472,7 +495,7 @@ export function ideasMessages(
   ];
 }
 
-export function distillQuestionsMessages(
+export function synthesisQuestionsMessages(
   request: {
     title: string;
     summary: string;
@@ -486,7 +509,7 @@ export function distillQuestionsMessages(
     {
       role: 'user',
       content: [
-        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `The learner is synthesizing one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
         `${MATERIAL_KINDS} The items arrive inside <material-${nonce}> tags, and the learner's summary in their own words inside <summary-${nonce}> tags.`,
         `Find what the marked items say about this idea that the summary leaves out or gets wrong, and ask at most ${max} short questions that make the learner put it in their own words.`,
         'A question must not contain its answer. Ask nothing the summary already covers. If nothing important is missing, reply with an empty list.',
@@ -510,7 +533,7 @@ export function assertionsMessages(
     {
       role: 'user',
       content: [
-        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `The learner is synthesizing one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
         `Their summary arrives inside <summary-${nonce}> tags and their answers to follow-up questions inside <transcript-${nonce}> tags.`,
         `Rewrite what the learner wrote as at most ${max} core assertions: short, concrete, checkable claims that together define the idea.`,
         'Use only what the learner wrote; add no fact, example or claim of your own. Each assertion is one plain sentence of at most 25 words, a statement and never a question.',
@@ -536,7 +559,7 @@ export function buzzwordsMessages(
     {
       role: 'user',
       content: [
-        `The learner is distilling one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
+        `The learner is synthesizing one idea, ${JSON.stringify(request.title.replace(/\s+/g, ' ').slice(0, 120))}, into a concept note.`,
         `${MATERIAL_KINDS} The items arrive inside <material-${nonce}> tags.`,
         `List at most ${max} terms of jargon from the items that a learner could repeat without understanding the idea, the author's coined labels first.`,
         'Each term is one to three words, copied as it appears; never an ordinary word such as a verb or a common noun. Reply with only the list, one per line, each line starting with a dash and a space followed by the term itself.',

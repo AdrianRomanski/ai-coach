@@ -16,7 +16,7 @@ import { NotFoundError, UnusableReplyError } from '../errors.js';
 import type {
   BookProgress,
   ConceptCheck,
-  DistillPartner,
+  SynthesisPartner,
   IdeaProposal,
   Library,
 } from '../ports/library.js';
@@ -27,10 +27,10 @@ export interface Idea {
   items: MaterialItem[];
 }
 
-export interface DistillingDeps {
+export interface SynthesizingDeps {
   notes: NotesRepository;
   library: Library;
-  partner: DistillPartner;
+  partner: SynthesisPartner;
   rules: SparringRules;
 }
 
@@ -45,8 +45,8 @@ function quoteFromSnippet(snippet: string): string | null {
   return best.length >= MIN_QUOTE ? best.trim() : null;
 }
 
-export class Distilling {
-  constructor(private readonly deps: DistillingDeps) {}
+export class Synthesizing {
+  constructor(private readonly deps: SynthesizingDeps) {}
 
   books(): Promise<BookProgress[]> {
     return this.deps.library.readingProgress();

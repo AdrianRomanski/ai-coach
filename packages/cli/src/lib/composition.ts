@@ -4,21 +4,21 @@ import {
   SystemClock,
 } from '@ai-coach/adapter-local-state';
 import {
-  OllamaDistillPartner,
+  OllamaSynthesisPartner,
   OllamaSparringPartner,
   OllamaStudyPartner,
   OllamaStyleClassifier,
 } from '@ai-coach/adapter-ollama';
 import { McpVault } from '@ai-coach/adapter-vault-mcp';
 import {
-  Distilling,
+  Synthesizing,
   Filing,
   Judging,
   Review,
   Sparring,
   Studying,
   type Clock,
-  type DistillPartner,
+  type SynthesisPartner,
   type Judge,
   type SparringPartner,
   type StudyPartner,
@@ -33,7 +33,7 @@ export interface Coach {
   sparring(): Sparring;
   judging(): Judging;
   studying(): Studying;
-  distilling(): Distilling;
+  synthesizing(): Synthesizing;
   close(): Promise<void>;
 }
 
@@ -42,7 +42,7 @@ export interface AdapterOverrides {
   judge?: (config: CoachConfig) => Judge;
   studyPartner?: (config: CoachConfig) => StudyPartner;
   classifier?: (config: CoachConfig) => StyleClassifier;
-  distillPartner?: (config: CoachConfig) => DistillPartner;
+  synthesisPartner?: (config: CoachConfig) => SynthesisPartner;
 }
 
 export async function composeCoach(
@@ -70,7 +70,10 @@ export async function composeCoach(
         pending,
         partner:
           overrides.partner?.(config) ??
-          new OllamaSparringPartner(ollamaOptions(config)),
+          new OllamaSparringPartner(
+            ollamaOptions(config),
+            config.ollama.checkModel,
+          ),
         classifier: classifier(),
         rules: config.sparring,
         ladder: config.ladder,
@@ -84,13 +87,13 @@ export async function composeCoach(
         classifier: classifier(),
         rules: config.sparring,
       }),
-    distilling: () =>
-      new Distilling({
+    synthesizing: () =>
+      new Synthesizing({
         notes: vault,
         library: vault,
         partner:
-          overrides.distillPartner?.(config) ??
-          new OllamaDistillPartner(ollamaOptions(config)),
+          overrides.synthesisPartner?.(config) ??
+          new OllamaSynthesisPartner(ollamaOptions(config)),
         rules: config.sparring,
       }),
     judging: () =>

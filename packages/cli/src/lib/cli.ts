@@ -25,7 +25,7 @@ import {
   type AdapterOverrides,
   type Coach,
 } from './composition.js';
-import { distill } from './distill.js';
+import { synthesize } from './synthesize.js';
 import { ConfigError, loadConfig } from './config.js';
 import { paint, type Terminal } from './terminal.js';
 
@@ -36,7 +36,7 @@ export const USAGE = `coach: a Socratic sparring partner for your notes
   coach spar [ref ...]        Tier 1, offline: spar due notes, or notes by path or coach_id
   coach judge [session ...]   Tier 2, online: judge the Tier 1 sessions waiting for it
   coach study <ref>           work through the gaps of a chapter's latest failed session
-  coach distill [book]        turn your marks and reading notes on a book into concept notes
+  coach synthesize [book]     turn your marks and reading notes on a book into concept notes
   coach file <note> <folder>  move a note into a PARA folder (shows a preview first)
   coach capture <title>       write a new note into 0.Inbox
   coach archive <project>     move a project from 1.Projects into 4.Archive
@@ -68,7 +68,7 @@ const COMMANDS: Record<
   spar,
   judge,
   study,
-  distill,
+  synthesize,
   file,
   capture,
   archive,

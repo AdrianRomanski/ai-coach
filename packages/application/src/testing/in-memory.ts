@@ -32,7 +32,7 @@ import type {
 import type {
   BookProgress,
   ConceptCheck,
-  DistillPartner,
+  SynthesisPartner,
   IdeaProposal,
   Library,
   PassageHit,
@@ -516,7 +516,7 @@ export class InMemoryLibrary implements Library {
   }
 }
 
-export class ScriptedDistillPartner implements DistillPartner {
+export class ScriptedSynthesisPartner implements SynthesisPartner {
   ideas: IdeaProposal[] | Error = [];
   questions: string[] | Error = [];
   assertions: string[] | Error = [];

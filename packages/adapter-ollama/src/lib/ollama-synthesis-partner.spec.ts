@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { UnusableReplyError } from '@ai-coach/application';
 import { sparringRules, type MaterialItem } from '@ai-coach/domain';
-import { OllamaDistillPartner } from './ollama-distill-partner.js';
+import { OllamaSynthesisPartner } from './ollama-synthesis-partner.js';
 
 const rules = sparringRules();
 const MATERIAL: MaterialItem[] = [
@@ -24,7 +24,7 @@ const MATERIAL: MaterialItem[] = [
   },
 ];
 
-describe('OllamaDistillPartner', () => {
+describe('OllamaSynthesisPartner', () => {
   const replies: string[] = [];
   const sent: {
     format?: unknown;
@@ -32,7 +32,7 @@ describe('OllamaDistillPartner', () => {
     messages: { role: string; content: string }[];
   }[] = [];
   let server: Server;
-  let partner: OllamaDistillPartner;
+  let partner: OllamaSynthesisPartner;
 
   const text = (i: number) =>
     sent[i]!.messages.map((m) => m.content).join('\n');
@@ -54,7 +54,7 @@ describe('OllamaDistillPartner', () => {
       server.listen(0, '127.0.0.1', resolve),
     );
     const host = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    partner = new OllamaDistillPartner({ model: 'g', host });
+    partner = new OllamaSynthesisPartner({ model: 'g', host });
   });
 
   afterAll(async () => {

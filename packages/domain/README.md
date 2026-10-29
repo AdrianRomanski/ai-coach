@@ -16,7 +16,7 @@ If you want to change _how the coach behaves_ (how many follow-ups it allows, wh
 | **What the judge sees** | The exact shape of what may go online: questions, answers and (optionally) core assertions. Nothing else gets through.             | `tier2-payload.ts`  |
 | **The review schedule** | When an idea comes back: tomorrow after a fail, in 3 days after a Tier 1 pass, then 7 → 14 → 30 → … → 365 days on Tier 2 passes.   | `review-ladder.ts`  |
 | **A study round**       | Working through the gaps of a failed round: tries per gap, hints, and finding the author's passage that answers a gap.             | `study-round.ts`    |
-| **Distilling**          | Reading your bolds, highlights and summaries out of a chapter, picking quotes, and checking a concept note before it's written.    | `distill.ts`        |
+| **Synthesizing**        | Reading your bolds, highlights and summaries out of a chapter, picking quotes, and checking a concept note before it's written.    | `synthesis.ts`      |
 | **Vocabulary**          | Shared words: verdicts, tiers, mastery levels, PARA folders, a note, an exchange.                                                  | `vocabulary.ts`     |
 
 ## Using it

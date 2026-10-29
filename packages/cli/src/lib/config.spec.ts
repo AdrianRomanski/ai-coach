@@ -37,6 +37,7 @@ describe('loadConfig', () => {
       stateDir: join(dir, 'home', '.local', 'state', 'ai-coach'),
       ollama: {
         model: undefined,
+        checkModel: undefined,
         host: 'http://127.0.0.1:11434',
         contextWindow: 16_384,
       },
@@ -57,7 +58,11 @@ describe('loadConfig', () => {
       JSON.stringify({
         vault: '~/Documents/life-vault',
         docsMcpBin: './bin/docs-mcp.js',
-        ollama: { model: 'gemma-from-file', contextWindow: 8192 },
+        ollama: {
+          model: 'gemma-from-file',
+          checkModel: 'gemma-check-from-file',
+          contextWindow: 8192,
+        },
         judge: { thinkingLevel: 'HIGH' },
         sparring: { buzzwords: ['synergy'], maxFollowUps: 1 },
         ladder: { tier2PassDays: [5, 10] },
@@ -76,7 +81,11 @@ describe('loadConfig', () => {
       configFile: join(dir, 'coach.config.json'),
       vault: join(dir, 'home', 'Documents', 'life-vault'),
       docsMcpBin: join(dir, 'bin', 'docs-mcp.js'),
-      ollama: { model: 'gemma-from-env', contextWindow: 32_768 },
+      ollama: {
+        model: 'gemma-from-env',
+        checkModel: 'gemma-check-from-file',
+        contextWindow: 32_768,
+      },
       judge: { thinkingLevel: 'HIGH', fallbackModel: 'gemini-3.8-flash' },
       ladder: { tier2PassDays: [5, 10], failDays: 1 },
     });
