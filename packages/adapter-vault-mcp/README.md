@@ -17,6 +17,8 @@ That keeps one program in charge of your vault: it knows the folder layout, keep
 | find a passage in a book                  | `find_passages`                                         |
 | write a concept note                      | `create_concept`                                        |
 
+`VaultClient` also wraps `search` and `vault_graph`, which the coach doesn't use yet. The server's planning tools are used by the [planning skills](../../.claude/skills/README.md), not by this package.
+
 Every tool that writes **previews first**. ai-coach only executes after you confirm in the terminal.
 
 ## Setting it up
@@ -33,6 +35,10 @@ Check out and build kb-template, then point ai-coach at its server and your vaul
 or with environment variables: `DOCS_MCP_VAULT` and `DOCS_MCP_BIN`.
 
 If `docsMcpBin` is left out, ai-coach looks for kb-template at `~/projects/kb-template`.
+
+`VaultClient.connect` starts the server as a child process, `node <docsMcpBin> serve --vault <vault>`, and talks to it over MCP on stdio. It identifies itself as `ai-coach` and keeps the server's stderr, so a failed start can show the end of the log. `McpVault.close()` stops the server.
+
+Always set the vault. Without `--vault`, `docs-mcp serve` starts kb-template's documentation server instead of the vault server, and the coach's calls will fail.
 
 ## Good to know
 

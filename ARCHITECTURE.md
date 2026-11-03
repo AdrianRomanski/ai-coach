@@ -1,41 +1,75 @@
 # Architecture
 
-ai-coach is a ports-and-adapters (hexagonal) application. The core knows nothing about MCP, Ollama, Gemini, the file system or the terminal; those sit behind ports the core defines, and one composition root wires them together.
+ai-coach is a ports-and-adapters (hexagonal) application. The core knows nothing about MCP, Ollama, Gemini, the file system or the terminal. Those sit behind ports the core defines, and one composition root wires them together.
 
-Why each part is the way it is lives in the ADRs in `docs/adr/`.
+Why each part is the way it is lives in the ADRs in [`docs/adr/`](docs/adr/README.md). This page is the map; the ADRs are the reasons.
+
+## The system around it
+
+```
+                         ┌───────────────────────── your machine ─────────────────────────┐
+                         │                                                                │
+  you ── terminal ──►  coach CLI (this repo) ──stdio/MCP──►  docs-mcp serve (kb-template) ──► Obsidian vault
+                         │        │                                   ▲                    │   (Markdown files)
+                         │        └──HTTP, loopback only──► Ollama (Gemma)                  │
+                         │                                            │                    │
+  you ── Claude Code ──► .claude/skills (this repo) ──stdio/MCP───────┘                    │
+                         │                                                                │
+                         └────────────────────────────────────────────────────────────────┘
+                                  │
+                                  └──HTTPS, Tier 2 payload only──► Gemini (the judge)
+```
+
+- **kb-template** owns the vault. Its `docs-mcp` server is the only program that reads or writes vault files (ADR-0003). It keeps the sparring history, checks quotes against books, and runs the planning model.
+- **The `coach` CLI** starts `docs-mcp serve --vault <vault>` as a child process and talks to it over MCP on stdio.
+- **The planning skills** in `.claude/skills/` are instructions for Claude Code, not code. They reach the same server through the MCP registration Claude Code loads, and never touch vault files directly (ADR-0029, ADR-0030).
+
+## Projects
 
 ```
                     driving side                      driven side
                                          ┌──────────────────────────────┐
-  terminal ──► cli ──► application ──►   │ NotesRepository, SessionLog,  │ ◄── adapter-vault-mcp   (kb-template over MCP)
-             (composition root)   │      │ VaultFiling                   │
-                                  │      │ SparringPartner               │ ◄── adapter-ollama      (local Gemma, loopback only)
-                                  ▼      │ Judge                         │ ◄── adapter-gemini      (Gemini Argon)
-                                domain   │ PendingJudgements, Clock      │ ◄── adapter-local-state (queue file, clock)
+  terminal ──► cli ──► application ──►   │ NotesRepository, SessionLog, │ ◄── adapter-vault-mcp   (kb-template over MCP)
+             (composition root)   │      │ VaultFiling, Library         │
+                                  │      │ SparringPartner, StudyPartner│ ◄── adapter-ollama      (local Gemma, loopback only)
+                                  │      │ StyleClassifier,             │
+                                  │      │ SynthesisPartner             │
+                                  ▼      │ Judge                        │ ◄── adapter-gemini      (Gemini)
+                                domain   │ PendingJudgements, Clock     │ ◄── adapter-local-state (queue file, clock)
                                          └──────────────────────────────┘
 ```
 
-## Projects
-
-| Project               | Tag                                   | Contains                                                                                                                                                             | May import                                      |
-| --------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `domain`              | `type:domain`                         | The sparring round aggregate, sparring rules, buzzword and verbatim checks, the review ladder, the judge's verdict rule, the Tier 2 payload invariant, domain errors | `domain` only; no npm package, no Node built-in |
-| `application`         | `type:application`                    | Use cases (`Sparring`, `SparringConversation`, `Judging`, `Review`, `Filing`), the ports they need, application errors                                               | `domain`; no npm package, no Node built-in      |
-| `adapter-vault-mcp`   | `type:adapter`, `adapter:vault-mcp`   | `McpVault`: the vault ports over kb-template's MCP server                                                                                                            | core; `@modelcontextprotocol/sdk`, `zod`, Node  |
-| `adapter-ollama`      | `type:adapter`, `adapter:ollama`      | `OllamaSparringPartner`: prompts, fencing, structured replies, the loopback-only guard                                                                               | core; `zod`, Node                               |
-| `adapter-gemini`      | `type:adapter`, `adapter:gemini`      | `GeminiJudge`: the blind claim-extraction protocol, fallback model, boundary re-check of the payload                                                                 | core; `@google/genai`, `zod`, Node              |
-| `adapter-local-state` | `type:adapter`, `adapter:local-state` | `FilePendingJudgements`, `SystemClock`                                                                                                                               | core; `zod`, Node                               |
-| `cli`                 | `type:app`                            | Terminal I/O, config, commands, and `composeCoach`, the only place a port meets its adapter                                                                          | everything                                      |
+| Project               | Tag                                   | Contains                                                                                                                                                                                                              | May import                                      |
+| --------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `domain`              | `type:domain`                         | The sparring round aggregate, sparring rules, coaching styles, buzzword and verbatim checks, the review ladder, the judge's verdict rule, the Tier 2 payload invariant, study rounds, synthesis checks, domain errors | `domain` only; no npm package, no Node built-in |
+| `application`         | `type:application`                    | Use cases (`Review`, `Filing`, `Sparring`, `SparringConversation`, `Judging`, `Studying`, `Synthesizing`), the ports they need, application errors, in-memory fakes for tests                                         | `domain`; no npm package, no Node built-in      |
+| `adapter-vault-mcp`   | `type:adapter`, `adapter:vault-mcp`   | `McpVault` and `VaultClient`: the vault and library ports over kb-template's MCP server                                                                                                                               | core; `@modelcontextprotocol/sdk`, `zod`, Node  |
+| `adapter-ollama`      | `type:adapter`, `adapter:ollama`      | The four Gemma partners and `OllamaClient`: prompts, fencing, structured replies, the loopback-only guard                                                                                                             | core; `zod`, Node                               |
+| `adapter-gemini`      | `type:adapter`, `adapter:gemini`      | `GeminiJudge`: the blind claim-extraction protocol, fallback model, boundary re-check of the payload                                                                                                                  | core; `@google/genai`, `zod`, Node              |
+| `adapter-local-state` | `type:adapter`, `adapter:local-state` | `FilePendingJudgements`, `SystemClock`                                                                                                                                                                                | core; `zod`, Node                               |
+| `cli`                 | `type:app`                            | Terminal I/O, config, commands, and `composeCoach`, the only place a port meets its adapter                                                                                                                           | everything                                      |
 
 Adapters never import each other, and nothing imports the `cli`.
+
+## Ports and who provides them
+
+| Port                                                          | File                             | Adapter                                      |
+| ------------------------------------------------------------- | -------------------------------- | -------------------------------------------- |
+| `NotesRepository`, `SessionLog`, `VaultFiling`                | `application/…/ports/vault.ts`   | `adapter-vault-mcp`                          |
+| `Library`                                                     | `application/…/ports/library.ts` | `adapter-vault-mcp`                          |
+| `SparringPartner`, `StudyPartner`, `StyleClassifier`, `Judge` | `application/…/ports/models.ts`  | `adapter-ollama`, `adapter-gemini` (`Judge`) |
+| `SynthesisPartner`                                            | `application/…/ports/library.ts` | `adapter-ollama`                             |
+| `PendingJudgements`, `Clock`                                  | `application/…/ports/state.ts`   | `adapter-local-state`                        |
 
 ## Rules
 
 - Dependencies point inward. Ports are shaped by what the use cases need, not by a tool's API.
-- Business rules live in the domain, in objects that guard their own invariants: a `SparringRound` will not accept a challenge that quotes the note, and `tier2Payload()` rejects any field other than `challenge` and `answer`.
+- Business rules live in the domain, in objects that guard their own invariants: a `SparringRound` will not accept a challenge that quotes the note, and `tier2Payload()` rejects any field other than `challenge` and `answer` (plus core assertions when allowed, ADR-0021).
 - Use cases orchestrate: they load through ports, let the domain decide, and save through ports.
+- Every write to the vault is a preview first and an execute only after the user confirms (ADR-0009).
 - Adapters translate technology failures into application errors (`UnavailableError`, `UnusableReplyError`, `VaultRefusedError`); the CLI turns those into messages and exit codes.
 - The only data that may leave the machine is a `Tier2Payload`. The Gemini adapter accepts nothing else and re-checks it.
+- Source code carries no comments (ADR-0011). Names and tests carry the meaning.
 
 ## Enforcement
 
@@ -53,5 +87,6 @@ Adapters never import each other, and nothing imports the `cli`.
 | Domain    | `domain`                                                  | Plain functions and objects                                                                                |
 | Use cases | `application`                                             | In-memory adapters in `src/testing`, including a check that a planted private line never reaches the judge |
 | Adapters  | `adapter-ollama`, `adapter-gemini`, `adapter-local-state` | A loopback HTTP server for Ollama, the real Gemini SDK with a fake client, a temporary directory           |
+| CLI       | `cli`                                                     | A scripted terminal and stubbed use cases                                                                  |
 
-Tests that start the kb-template vault server (the MCP adapter and end-to-end CLI tests) are dropped for now, so `adapter-vault-mcp` has no tests and passes with none.
+Tests that start the kb-template vault server (the MCP adapter and end-to-end CLI tests) are dropped for now (ADR-0010), so `adapter-vault-mcp` has no tests and passes with none.

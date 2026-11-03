@@ -35,7 +35,7 @@ npm run coach -- due --today 2026-11-01
 
 ## Configuration
 
-The CLI finds its settings in `--config <file>`, then `./coach.config.json`, then `~/.config/ai-coach/config.json`. Environment variables override the file. Every setting is explained in the [main README](../../README.md#configuration).
+The CLI finds its settings in `--config <file>`, then `./coach.config.json`, then `$XDG_CONFIG_HOME/ai-coach/config.json` (by default `~/.config/ai-coach/config.json`). Environment variables override the file. Every setting is explained in the [main README](../../README.md#configuration).
 
 A minimal file:
 

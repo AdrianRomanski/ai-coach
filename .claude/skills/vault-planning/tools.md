@@ -1,6 +1,6 @@
 # The life-vault tools for planning
 
-The server is registered as `life-vault` in the repo's `.mcp.json`, so its tools are named `mcp__life-vault__<tool>`. If they are missing, or `add_tasks`, `update_task`, `plan_days`, `set_frontmatter`, `edit_note` or `create_workstream` are missing, the server isn't running or runs an old build: tell the user to rebuild their kb-template checkout (`pnpm run build`) and to restart the `life-vault` server (`/mcp`, or restart Claude Code). Don't fall back to editing files.
+The server is registered in Claude Code as `life-vault` (see `.claude/skills/README.md`), so its tools are named `mcp__life-vault__<tool>`. If they are missing, tell the user to register it as that README shows. If `add_tasks`, `update_task`, `plan_days`, `set_frontmatter`, `edit_note` or `create_workstream` are missing, the server isn't running or runs an old build: tell the user to rebuild their kb-template checkout (`pnpm run build`) and to restart the `life-vault` server (`/mcp`, or restart Claude Code). Don't fall back to editing files.
 
 ## Every write: preview, versions, execute
 
